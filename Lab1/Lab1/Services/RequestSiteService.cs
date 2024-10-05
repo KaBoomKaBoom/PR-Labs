@@ -8,21 +8,14 @@ namespace Lab1.Services
 {
     public class RequestSiteService
     {
-        private string _siteName;
-
-        public RequestSiteService()
-        {
-            _siteName = "https://darwin.md/telefoane";
-        }
-
-        public async Task<string> GetSiteContent()
+        public async Task<string> GetSiteContent(string siteName)
         {
             using (HttpClient client = new HttpClient())
             {
                 try
                 {
                     // Send an HTTP GET request to the specified URL
-                    HttpResponseMessage response = await client.GetAsync(_siteName);
+                    HttpResponseMessage response = await client.GetAsync(siteName);
                     
                     // Check if the response was successful
                     if (response.IsSuccessStatusCode)
@@ -30,9 +23,9 @@ namespace Lab1.Services
                         // Read the HTML content of the response
                         string htmlContent = await response.Content.ReadAsStringAsync();
                         
-                        // Save content to a file
-                        string filePath = "siteContent.html";
-                        await SaveContentToFile(htmlContent, filePath);
+                        // // Save content to a file
+                        // string filePath = "siteContent.html";
+                        // await SaveContentToFile(htmlContent, filePath);
                         return htmlContent;
 
                     }

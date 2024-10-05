@@ -25,6 +25,30 @@ namespace Lab1.Services
             string link = nameNode != null ? nameNode.GetAttributeValue("href", string.Empty) : "Link not found";
             return link;
         }
+        public string ExtractProductResolution(string htmlContent)
+        {
+            var htmlDoc = new HtmlDocument();
+            htmlDoc.LoadHtml(htmlContent);
+            var productNode = htmlDoc.DocumentNode.SelectSingleNode("//div[contains(@class, 'main-description')]//ul[contains(@class, 'features')]");
+            if (productNode != null)
+            {
+                var features = productNode.SelectNodes(".//li");
+                if (features != null)
+                {
+                    foreach (var feature in features)
+                    {
+                        if (feature.InnerText.Trim().Contains("Rezolu"))
+                        {
+                            var resolutionDescription = feature.InnerText.Trim();
+                            return resolutionDescription.Split(":")[1];
+                        }
+                    }
+                }
+            }
+            return "Resolution not found";
+            // var resolutionNode = productNode.SelectSingleNode(".//div[contains(@class, 'main-description')]//ul[contains(@class, 'features')]//li[contains(@class, 'resolution')]");
+            // string resolution = resolutionNode != null ? resolutionNode.InnerText.Trim() : "Resolution not found";
+        }
 
     }
 }

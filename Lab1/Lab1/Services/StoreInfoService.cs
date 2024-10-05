@@ -13,7 +13,7 @@ namespace Lab1.Services
             _products = new List<Product>();
         }
 
-        public void StoreInfo(string htmlContent)
+        public List<Product>? StoreInfo(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
@@ -29,14 +29,25 @@ namespace Lab1.Services
                         Price = _extractProduct.ExtractProductPrice(productNode),
                         Link = _extractProduct.ExtractProductLink(productNode)
                     };
-                    Console.WriteLine($"Product: {product.Name}, Price: {product.Price}, Link: {product.Link}");
+                    // Console.WriteLine($"Product: {product.Name}, Price: {product.Price}, Link: {product.Link}");
                     _products.Add(product);
                 }
+                return _products;
             }
             else
             {
                 Console.WriteLine("No products found.");
+                return null;
             }
         }
+
+        public Product StoreAdditionalInfo(string htmlContent, Product product)
+        {
+            product.Resolution = _extractProduct.ExtractProductResolution(htmlContent);
+
+            return product;
+        }
+
+
     }
 }
