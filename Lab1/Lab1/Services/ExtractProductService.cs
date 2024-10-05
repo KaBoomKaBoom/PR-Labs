@@ -51,14 +51,10 @@ namespace Lab1.Services
                 {
                     // Extract product name
                     var nameNode = productNode.SelectSingleNode(".//div[contains(@class, 'grid-item')]//figcaption//a[contains(@class, 'ga-item')]");
-                    string name = nameNode != null ? nameNode.InnerText.Trim() : "Name not found";
+                    
+                    string link = nameNode != null ? nameNode.GetAttributeValue("href", string.Empty) : "Link not found";
 
-                    // Extract product name
-                    var priceNode = productNode.SelectSingleNode(".//div[contains(@class, 'bottom-wrap')]//div[contains(@class, 'price-wrap')]//span[contains(@class, 'price-new')]/b");
-                    string price = priceNode != null ? priceNode.InnerText.Trim() : "Name not found";
-
-
-                    Console.WriteLine($"Product: {name}, Price: {price}");
+                    Console.WriteLine($"Link: {link}");
                 }
             }
             else

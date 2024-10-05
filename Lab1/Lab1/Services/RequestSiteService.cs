@@ -38,7 +38,7 @@ namespace Lab1.Services
 
                         // Extract products info
                         _extractProduct.ExtractProductsInfo(htmlContent);
-                        //_extractProduct.ExtractLink(htmlContent);
+                        _extractProduct.ExtractLink(htmlContent);
                     }
                     else
                     {
