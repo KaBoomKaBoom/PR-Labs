@@ -9,15 +9,13 @@ namespace Lab1.Services
     public class RequestSiteService
     {
         private string _siteName;
-        private ExtractProductService _extractProduct;
 
         public RequestSiteService()
         {
             _siteName = "https://darwin.md/telefoane";
-            _extractProduct = new ExtractProductService();
         }
 
-        public async Task GetSiteContent()
+        public async Task<string> GetSiteContent()
         {
             using (HttpClient client = new HttpClient())
             {
@@ -33,22 +31,22 @@ namespace Lab1.Services
                         string htmlContent = await response.Content.ReadAsStringAsync();
                         
                         // Save content to a file
-                        string filePath = "siteContent.html"; // Specify your file path here
+                        string filePath = "siteContent.html";
                         await SaveContentToFile(htmlContent, filePath);
+                        return htmlContent;
 
-                        // Extract products info
-                        _extractProduct.ExtractProductsInfo(htmlContent);
-                        _extractProduct.ExtractLink(htmlContent);
                     }
                     else
                     {
                         Console.WriteLine($"Error: {response.StatusCode}");
+                        return string.Empty;
                     }
                 }
                 catch (Exception ex)
                 {
                     // Handle any exceptions that occur during the request
                     Console.WriteLine($"An error occurred: {ex.Message}");
+                    return string.Empty;
                 }
             }
         }
