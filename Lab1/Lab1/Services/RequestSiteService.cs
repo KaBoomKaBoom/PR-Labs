@@ -75,6 +75,8 @@ namespace Lab1.Services
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
+            List<string> products = new List<string>();
+
             // Select all product nodes based on the provided HTML structure
             var productNameNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'grid-item')]");
 
@@ -85,8 +87,8 @@ namespace Lab1.Services
                     // Extract product name
                     var nameNode = productNameNode.SelectSingleNode(".//figcaption//a[contains(@class, 'ga-item')]");
                     string name = nameNode != null ? nameNode.InnerText.Trim() : "Name not found";
-
-                    Console.WriteLine($"Product: {name}, ");
+                    products.Add($"Product: {name}, ");
+                    //Console.WriteLine($"Product: {name}, ");
                 }
             }
             else
@@ -94,7 +96,7 @@ namespace Lab1.Services
                 Console.WriteLine("No products found.");
             }
             var productPriceNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'bottom-wrap')]");
-
+            var i = 0;
             if (productPriceNodes != null)
             {
                 foreach (var productPriceNode in productPriceNodes)
@@ -102,13 +104,14 @@ namespace Lab1.Services
                     // Extract product price
                     var priceNode = productPriceNode.SelectSingleNode(".//div[contains(@class, 'price-wrap')]//span[contains(@class, 'price-new')]/b");
                     string price = priceNode != null ? priceNode.InnerHtml.Trim() : "Price not found";
-
-                    Console.WriteLine($"Price: {price}");
+                    products[i] += $"Price: {price}";
+                    i++;
+                    //Console.WriteLine($"Price: {price}");
                 }
             }
-            else
+            foreach (var product in products)
             {
-                Console.WriteLine("No products found.");
+                Console.WriteLine(product);
             }
         }
     }
