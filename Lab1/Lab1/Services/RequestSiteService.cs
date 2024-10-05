@@ -9,10 +9,12 @@ namespace Lab1.Services
     public class RequestSiteService
     {
         private string _siteName;
+        private ExtractProductService _extractProduct;
 
         public RequestSiteService()
         {
             _siteName = "https://darwin.md/telefoane";
+            _extractProduct = new ExtractProductService();
         }
 
         public async Task GetSiteContent()
@@ -29,17 +31,14 @@ namespace Lab1.Services
                     {
                         // Read the HTML content of the response
                         string htmlContent = await response.Content.ReadAsStringAsync();
-                    
-                        // // Output the HTML content
-                        // Console.WriteLine("HTML Content:\n");
-                        // Console.WriteLine(htmlContent);
                         
                         // Save content to a file
                         string filePath = "siteContent.html"; // Specify your file path here
                         await SaveContentToFile(htmlContent, filePath);
 
                         // Extract products info
-                        ExtractProductsInfo(htmlContent);
+                        _extractProduct.ExtractProductsInfo(htmlContent);
+                        //_extractProduct.ExtractLink(htmlContent);
                     }
                     else
                     {
@@ -69,50 +68,6 @@ namespace Lab1.Services
             }
         }
 
-        private void ExtractProductsInfo(string htmlContent)
-        {
-                    // Load the HTML document
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(htmlContent);
-
-            List<string> products = new List<string>();
-
-            // Select all product nodes based on the provided HTML structure
-            var productNameNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'grid-item')]");
-
-            if (productNameNodes != null)
-            {
-                foreach (var productNameNode in productNameNodes)
-                {
-                    // Extract product name
-                    var nameNode = productNameNode.SelectSingleNode(".//figcaption//a[contains(@class, 'ga-item')]");
-                    string name = nameNode != null ? nameNode.InnerText.Trim() : "Name not found";
-                    products.Add($"Product: {name}, ");
-                    //Console.WriteLine($"Product: {name}, ");
-                }
-            }
-            else
-            {
-                Console.WriteLine("No products found.");
-            }
-            var productPriceNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'bottom-wrap')]");
-            var i = 0;
-            if (productPriceNodes != null)
-            {
-                foreach (var productPriceNode in productPriceNodes)
-                {
-                    // Extract product price
-                    var priceNode = productPriceNode.SelectSingleNode(".//div[contains(@class, 'price-wrap')]//span[contains(@class, 'price-new')]/b");
-                    string price = priceNode != null ? priceNode.InnerHtml.Trim() : "Price not found";
-                    products[i] += $"Price: {price}";
-                    i++;
-                    //Console.WriteLine($"Price: {price}");
-                }
-            }
-            foreach (var product in products)
-            {
-                Console.WriteLine(product);
-            }
-        }
+        
     }
 }
