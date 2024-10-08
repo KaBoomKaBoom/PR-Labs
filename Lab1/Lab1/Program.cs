@@ -7,8 +7,7 @@ using System.Text.Json;
 
 var requestSiteService = new RequestSiteService();
 var htmlContent = await requestSiteService.GetSiteContent("https://darwin.md/telefoane");
-
-
+//var htmlContent = await requestSiteService.GetSiteContentTCP("https://darwin.md/telefoane");
 
 var storeInfoService = new StoreInfoService();
 List<Product>? products = storeInfoService.StoreInfo(htmlContent);
