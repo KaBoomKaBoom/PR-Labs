@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HtmlAgilityPack;
 using Lab1.Models;
 
@@ -48,6 +49,11 @@ namespace Lab1.Services
             return product;
         }
 
+        public string StoreAsJson(List<Product> products)
+        {
+            var json = JsonSerializer.Serialize(products);
+            return json;
+        }
 
     }
 }

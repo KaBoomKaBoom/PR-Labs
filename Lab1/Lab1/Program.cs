@@ -17,7 +17,11 @@ foreach (var product in products)
     storeInfoService.StoreAdditionalInfo(htmlContentProduct, product);
 }
 
-foreach (var product in products)
-{
-    Console.WriteLine($"Product: {product.Name}, Price: {product.Price}, Link: {product.Link}, Resolution: {product.Resolution}");
-}
+// foreach (var product in products)
+// {
+//     Console.WriteLine($"Product: {product.Name}, Price: {product.Price}, Link: {product.Link}, Resolution: {product.Resolution}");
+// }
+
+var json = storeInfoService.StoreAsJson(products);
+Console.WriteLine(json);
+File.WriteAllText("products.json", json);
