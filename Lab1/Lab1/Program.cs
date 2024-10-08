@@ -19,16 +19,15 @@ foreach (var product in products)
 }
 
 var json = storeInfoService.StoreAsJson(products);
-// Console.WriteLine(json);
 File.WriteAllText("productsInicial.json", json);
-// foreach (var product in products)
-// {
-//     Console.WriteLine($"Product: {product.Name}, Price: {product.Price}, Link: {product.Link}, Resolution: {product.Resolution}");
-// }
+
+var priceMapper = new PriceMapper();
 
 //Map price to euro using mapping function using Linq extension
-var priceMapper = new PriceMapper();
 var productsInEuro = priceMapper.LeiToEuro(products);
 var jsonEuro = storeInfoService.StoreAsJson(productsInEuro);
-// Console.WriteLine(json);
 File.WriteAllText("productsInEuro.json", jsonEuro);
+
+var filteredProducts = priceMapper.FilterProductsByPrice(productsInEuro, 100, 250);
+var jsonFiltered = storeInfoService.StoreAsJson(filteredProducts);
+File.WriteAllText("productsFiltered.json", jsonFiltered);

@@ -17,5 +17,12 @@ namespace Lab1.Mappers
             }).ToList();
             return productsInEuro;
         }
+
+        public List<Product> FilterProductsByPrice(List<Product> products, decimal minPrice, decimal maxPrice)
+        {
+            // Filter products by price range
+            var filteredProducts = products.Where(product => product.Price >= minPrice && product.Price <= maxPrice).ToList();
+            return filteredProducts;
+        }
     }
 }
