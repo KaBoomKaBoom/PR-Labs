@@ -55,5 +55,24 @@ namespace Lab1.Services
             return json;
         }
 
+        public List<FilteredProduct> StoreProductsWithTotalPrice(List<Product> products, decimal totalPrice)
+        {
+            var filteredProducts = new List<FilteredProduct>();
+            foreach (var product in products)
+            {
+                var filteredProduct = new FilteredProduct
+                {
+                    Name = product.Name,
+                    Price = product.Price,
+                    Link = product.Link,
+                    Resolution = product.Resolution,
+                    TotalPriceFilteredProducts = totalPrice,
+                    Date = DateTime.Now
+                };
+                filteredProducts.Add(filteredProduct);
+            }
+            return filteredProducts;
+        }
+
     }
 }

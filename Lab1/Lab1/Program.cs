@@ -2,6 +2,8 @@
 using Lab1.Models;
 using Lab1.Services;
 using Lab1.Mappers;
+using System.Text.Json;
+
 
 var requestSiteService = new RequestSiteService();
 var htmlContent = await requestSiteService.GetSiteContent("https://darwin.md/telefoane");
@@ -31,3 +33,8 @@ File.WriteAllText("productsInEuro.json", jsonEuro);
 var filteredProducts = priceMapper.FilterProductsByPrice(productsInEuro, 100, 250);
 var jsonFiltered = storeInfoService.StoreAsJson(filteredProducts);
 File.WriteAllText("productsFiltered.json", jsonFiltered);
+
+
+var filteredProductsTotalPrice = storeInfoService.StoreProductsWithTotalPrice(filteredProducts, priceMapper.SumPrices(filteredProducts)); 
+var jsonFilteredTotalPrice = JsonSerializer.Serialize(filteredProductsTotalPrice);
+File.WriteAllText("productsFilteredTotalPrice.json", jsonFilteredTotalPrice);

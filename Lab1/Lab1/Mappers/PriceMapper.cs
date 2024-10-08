@@ -24,5 +24,12 @@ namespace Lab1.Mappers
             var filteredProducts = products.Where(product => product.Price >= minPrice && product.Price <= maxPrice).ToList();
             return filteredProducts;
         }
+
+        public decimal SumPrices(List<Product> products)
+        {
+            // Calculate the sum of all product prices
+            decimal sum = products.Sum(product => product.Price);
+            return sum;
+        }
     }
 }
