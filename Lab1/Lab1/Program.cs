@@ -19,21 +19,36 @@ foreach (var product in products)
     storeInfoService.StoreAdditionalInfo(htmlContentProduct, product);
 }
 
-var json = storeInfoService.StoreAsJson(products);
+var serializationService = new SerializationService();
+
+//Inicial data extracted from site
+// var json = storeInfoService.StoreAsJson(products);
+var json = serializationService.SerializeListToJson(products);
+var xml = serializationService.SerializeListToXML(products);
 File.WriteAllText("productsInicial.json", json);
+File.WriteAllText("productsInicial.xml", xml);
 
 var priceMapper = new PriceMapper();
 
+//Modified price to euro
 //Map price to euro using mapping function using Linq extension
 var productsInEuro = priceMapper.LeiToEuro(products);
-var jsonEuro = storeInfoService.StoreAsJson(productsInEuro);
+//var jsonEuro = storeInfoService.StoreAsJson(productsInEuro);
+var jsonEuro = serializationService.SerializeListToJson(productsInEuro);
+var xmlEuro = serializationService.SerializeListToXML(productsInEuro);
 File.WriteAllText("productsInEuro.json", jsonEuro);
+File.WriteAllText("productsInEuro.xml", xmlEuro);
 
+
+//Filtered products by price
 var filteredProducts = priceMapper.FilterProductsByPrice(productsInEuro, 100, 250);
-var jsonFiltered = storeInfoService.StoreAsJson(filteredProducts);
-File.WriteAllText("productsFiltered.json", jsonFiltered);
+//var jsonFiltered = storeInfoService.StoreAsJson(filteredProducts);
+//File.WriteAllText("productsFiltered.json", jsonFiltered);
 
-
+//Filtered products + atached total price and time
 var filteredProductsTotalPrice = storeInfoService.StoreProductsWithTotalPrice(filteredProducts, priceMapper.SumPrices(filteredProducts)); 
-var jsonFilteredTotalPrice = JsonSerializer.Serialize(filteredProductsTotalPrice);
+//var jsonFilteredTotalPrice = JsonSerializer.Serialize(filteredProductsTotalPrice);
+var jsonFilteredTotalPrice = serializationService.SerializeListToJson(filteredProductsTotalPrice);
+var xmlFilteredTotalPrice = serializationService.SerializeListToXML(filteredProductsTotalPrice);
 File.WriteAllText("productsFilteredTotalPrice.json", jsonFilteredTotalPrice);
+File.WriteAllText("productsFilteredTotalPrice.xml", xmlFilteredTotalPrice);
