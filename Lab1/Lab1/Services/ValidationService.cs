@@ -4,10 +4,10 @@ namespace Lab1.Services
 {
     public class ValidationService
     {
-        public int ValidatePrice(string price)
+        public decimal ValidatePrice(string price)
         {
-            //Convert string to int
-            var validatedPrice = Convert.ToInt32(RemoveWhitespacesUsingRegex(price));
+            //Convert string to decimal
+            var validatedPrice = Convert.ToDecimal(RemoveWhitespacesUsingRegex(price));
             return validatedPrice;
         }
 
@@ -16,7 +16,7 @@ namespace Lab1.Services
             //Remove all spaces from string. EX: " 1920 x 1080 " -> "1920x1080"
             return RemoveWhitespacesUsingRegex(resolution);
         }
-        public static string RemoveWhitespacesUsingRegex(string source)
+        private string RemoveWhitespacesUsingRegex(string source)
         {
             return Regex.Replace(source, @"\s", string.Empty);
         }

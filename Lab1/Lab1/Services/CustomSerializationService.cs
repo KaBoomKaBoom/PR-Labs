@@ -18,7 +18,7 @@ namespace Lab1.Services
                 var name = prop.Name;
                 var value = prop.GetValue(obj);
 
-                serialized.Append($"{name}:{value};");
+                serialized.Append($"{name}<{value};");
             }
 
             return serialized.ToString();
@@ -27,11 +27,18 @@ namespace Lab1.Services
         public string SerializeList<T>(List<T> objList)
         {
             var serialized = new StringBuilder();
-            foreach(var obj in objList)
+            
+            for (int i = 0; i < objList.Count; i++)
             {
-                serialized.Append(Serialize(obj));
-                serialized.Append("|");
+                serialized.Append(Serialize(objList[i]));
+                
+                // Only add the pipe if this is not the last item
+                if (i < objList.Count - 1)
+                {
+                    serialized.Append("|");
+                }
             }
+
             return serialized.ToString();
         }
 
@@ -47,7 +54,8 @@ namespace Lab1.Services
             
             foreach(var pair in keyValuePairs)
             {
-                var keyValue = pair.Split(':');
+                var keyValue = pair.Split("<");
+
                 var propertyName = keyValue[0];
                 var propertyValue = keyValue[1];
 

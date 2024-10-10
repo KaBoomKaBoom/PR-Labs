@@ -52,3 +52,19 @@ var jsonFilteredTotalPrice = serializationService.SerializeListToJson(filteredPr
 var xmlFilteredTotalPrice = serializationService.SerializeListToXML(filteredProductsTotalPrice);
 File.WriteAllText("productsFilteredTotalPrice.json", jsonFilteredTotalPrice);
 File.WriteAllText("productsFilteredTotalPrice.xml", xmlFilteredTotalPrice);
+
+//Custom serialization/deserialization
+var customSerializationService = new CustomSerializationService();
+var customSerialized = customSerializationService.SerializeList(products);
+File.WriteAllText("productsCustomSerialized.txt", customSerialized);
+
+List<Product> customDeserialized = customSerializationService.DeserializeList<Product>(customSerialized);
+Console.WriteLine(customDeserialized.Count);
+foreach (var product in customDeserialized)
+{
+    Console.WriteLine("Product");
+    Console.WriteLine(product.Name);
+    Console.WriteLine(product.Price);
+    Console.WriteLine(product.Link);
+    Console.WriteLine(product.Resolution + "\n");
+}
