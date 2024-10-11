@@ -1,0 +1,8 @@
+Authorization Basic:
+    Username: 307
+    Password: 301
+
+Headers:
+    Content-Type: application/xml
+    Content-Type: application/json
+

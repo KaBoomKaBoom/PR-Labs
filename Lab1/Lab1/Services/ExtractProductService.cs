@@ -18,7 +18,7 @@ namespace Lab1.Services
             string name = nameNode != null ? nameNode.InnerText.Trim() : "Name not found";
             return name;
         }
-        public int ExtractProductPrice(HtmlNode productNode)
+        public decimal ExtractProductPrice(HtmlNode productNode)
         {   
             var priceNode = productNode.SelectSingleNode(".//div[contains(@class, 'bottom-wrap')]//div[contains(@class, 'price-wrap')]//span[contains(@class, 'price-new')]/b");
             string price = priceNode != null ? priceNode.InnerText.Trim() : "Price not found";
