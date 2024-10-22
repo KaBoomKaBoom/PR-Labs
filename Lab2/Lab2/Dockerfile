@@ -12,7 +12,7 @@
     COPY ["Lab2.csproj", "./"]
     RUN dotnet restore "Lab2.csproj"
     COPY . .
-    WORKDIR "/src/Lab2"
+    WORKDIR "/src/"
     RUN dotnet build "Lab2.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
     # Publish stage
