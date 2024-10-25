@@ -1,7 +1,16 @@
     # Base stage
     FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+    USER root
+    RUN apt-get update && apt-get install -y libgssapi-krb5-2 krb5-user
+    # Copy your initialization scripts into the image
+    COPY init-db.sh .
+    COPY init.sql .
+    # Make the script executable
+    RUN chmod 644 init.sql
+    RUN chmod +x ./init-db.sh
     USER app
     WORKDIR /app
+
     EXPOSE 8080
     EXPOSE 8081
 

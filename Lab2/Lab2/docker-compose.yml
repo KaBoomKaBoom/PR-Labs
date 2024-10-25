@@ -1,9 +1,10 @@
+version: '3.8'
 services:
   lab2:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: lab2-cotainer
+    container_name: lab2-container
     ports:
       - "8080:8080"
       - "8081:8081"
@@ -12,12 +13,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     networks:
-      - lab2_defaut
+      - lab2_default
 
   sql-server:
     container_name: sql-server
-    image: mcr.microsoft.com/mssql/server:2019-latest
-    # image: mcr.microsoft.com/mssql/server:2019-CU17-ubuntu-20.04
+    image: mcr.microsoft.com/mssql/server:2019-CU17-ubuntu-20.04
     restart: always
     environment:
       ACCEPT_EULA: Y
@@ -25,13 +25,16 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - my-volume:/var/opt/mssql/data
-    user:
-      root
+      # - my-volume:/var/opt/mssql/data
+      - ./init-db.sh:/usr/src/app/init-db.sh:z
+      - ./init-db.sql:/usr/src/app/init.sql:z
+    user: root
     networks:
-      - lab2_defaut
+      - lab2_default
+    command: ["/bin/bash", "/usr/src/app/init-db.sh"]
 
 volumes:
   my-volume:
+
 networks:
-  lab2_defaut:
+  lab2_default:
