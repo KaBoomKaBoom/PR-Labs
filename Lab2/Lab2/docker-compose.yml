@@ -25,13 +25,10 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      # - my-volume:/var/opt/mssql/data
-      - ./init-db.sh:/usr/src/app/init-db.sh:z
-      - ./init-db.sql:/usr/src/app/init.sql:z
+      - my-volume:/var/opt/mssql/data
     user: root
     networks:
       - lab2_default
-    command: ["/bin/bash", "/usr/src/app/init-db.sh"]
 
 volumes:
   my-volume:
