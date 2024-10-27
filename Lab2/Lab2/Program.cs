@@ -1,5 +1,6 @@
 using Lab2.Helpers;
 using Lab2.Models;
+using Lab2.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,5 +50,9 @@ else
 
 app.MapControllers();
 
+// Chat room setup
+var webSocketRoom = new ChatRoom();
+var webSocketServerService = new WebSocketServerService();
+Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
 
 app.Run();
