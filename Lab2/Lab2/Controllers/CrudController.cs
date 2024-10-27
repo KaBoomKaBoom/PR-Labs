@@ -1,3 +1,4 @@
+using System.Text;
 using Lab2.DTOs;
 using Lab2.Helpers;
 using Lab2.Mappers;
@@ -32,10 +33,10 @@ namespace Lab2.Controllers
 
             //Skip -> offset, depends on page number
             //Take -> limit, depends on page size
-            var products = _context.Product.Skip((pageNumber-1)*pageSize).Take(pageSize);            
+            var products = _context.Product.Skip((pageNumber - 1) * pageSize).Take(pageSize);
             return Ok(products);
         }
-    
+
 
         [HttpGet("/product/{id}")]
         public IActionResult GetProductById(int id)
@@ -91,6 +92,30 @@ namespace Lab2.Controllers
             _context.SaveChanges();
 
             return NoContent();
+        }
+
+        [HttpPost("/upload")]
+        public async Task<IActionResult> UploadFile([FromForm] IFormFile file)
+        {
+            if (file == null)
+            {
+                return BadRequest("File is null");
+            }
+
+            if (file.Length == 0)
+            {
+                return BadRequest("File is empty");
+            }
+
+            // Read file content as string
+            using var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8);
+            var fileContent = await reader.ReadToEndAsync();
+
+            // Print the content to console (or any logging if needed)
+            Console.WriteLine(fileContent);
+
+            // Return the file content as a response
+            return Ok(new { Message = "File content received successfully"});
         }
     }
 
