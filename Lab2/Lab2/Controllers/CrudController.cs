@@ -25,8 +25,19 @@ namespace Lab2.Controllers
             _dbCompletition.CompleteDb();
             return Ok(_context.Product);
         }
+        [HttpGet("/products/{pageNumber}")]
+        public IActionResult GetProductsByPage(int pageNumber)
+        {
+            var pageSize = 5;
 
-        [HttpGet("/products/{id}")]
+            //Skip -> offset, depends on page number
+            //Take -> limit, depends on page size
+            var products = _context.Product.Skip((pageNumber-1)*pageSize).Take(pageSize);            
+            return Ok(products);
+        }
+    
+
+        [HttpGet("/product/{id}")]
         public IActionResult GetProductById(int id)
         {
             var product = _context.Product.Find(id);
