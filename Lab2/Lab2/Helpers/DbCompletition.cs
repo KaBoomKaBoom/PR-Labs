@@ -18,7 +18,7 @@ namespace Lab2.Helpers
         {
             _dataContext.Database.EnsureCreated();
 
-            if (!_dataContext.Product.Any()) // Assuming Products DbSet exists in DataContext
+            if (_dataContext.Product.Count() < 3) // Assuming Products DbSet exists in DataContext
             {
                 var products = LoadProductsFromJson("Products.json");
                 _dataContext.Product.AddRange(products);

@@ -1,3 +1,4 @@
+using Lab2.Helpers;
 using Lab2.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +30,7 @@ builder.Services.AddCors((options) =>
 // Register DbContext with SQL Server
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(connectionString));
-
+builder.Services.AddScoped<DbCompletition>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
