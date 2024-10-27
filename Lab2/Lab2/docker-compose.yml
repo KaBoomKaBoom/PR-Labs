@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  lab2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab2-container
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - sql-server
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - lab2_default
+
+  sql-server:
+    container_name: sql-server
+    image: mcr.microsoft.com/mssql/server:2019-CU17-ubuntu-20.04
+    restart: always
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "#1324aAa1324"
+    ports:
+      - "1433:1433"
+    volumes:
+      - my-volume:/var/opt/mssql/data
+    user: root
+    networks:
+      - lab2_default
+
+volumes:
+  my-volume:
+
+networks:
+  lab2_default:
