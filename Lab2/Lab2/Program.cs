@@ -48,12 +48,6 @@ else
 }
 
 app.MapControllers();
-// Endpoint to add a new product
-app.MapPost("/products", async (Product product, DataContext context) =>
-{
-    context.Product.Add(product);
-    await context.SaveChangesAsync();
-    return Results.Created($"/products/{product.Id}", product);
-});
+
 
 app.Run();
