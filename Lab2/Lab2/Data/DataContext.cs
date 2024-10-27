@@ -28,6 +28,8 @@ public class DataContext : DbContext
         modelBuilder.Entity<Product>()
             .ToTable("Product", "Lab2")
             .HasKey(u => u.Id);
-
+        modelBuilder.Entity<ProductFiltered>()
+            .ToTable("ProductFiltered", "Lab2")
+            .HasKey(u => u.Id);
     }
 }
