@@ -19,7 +19,7 @@ namespace Lab2.Services
                     contex.Response.StatusCode = 400;
                 }
             });
-            await webSocketApp.RunAsync("http://localhost:8081");
+            await webSocketApp.RunAsync("http://0.0.0.0:5000");
         }
     }
 }
