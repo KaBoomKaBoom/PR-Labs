@@ -7,7 +7,7 @@ services:
     container_name: lab2-container
     ports:
       - "8080:8080"
-      - "8081:8081"
+      - "5000:5000"
     depends_on:
       - sql-server
     environment:

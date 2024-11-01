@@ -7,50 +7,124 @@ namespace Lab2.Services
     public class ChatRoom
     {
         private ConcurrentDictionary<WebSocket, string> _sockets = new();
-        
+
+        //cancelattion token (connection)
+        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+
         public void AddConnection(WebSocket socket)
         {
             _sockets[socket] = string.Empty;
-            ReceiveMessages(socket);
+            _ = ReceiveMessages(socket);
         }
 
-        private async void ReceiveMessages(WebSocket socket)
+        private async Task ReceiveMessages(WebSocket socket)
         {
+            //buffer to recevie messages from socket
             var buffer = new byte[1024 * 4];
-
-            while(socket.State == WebSocketState.Open)
+            try
             {
-                var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if(result.MessageType == WebSocketMessageType.Close)
+                while (socket.State == WebSocketState.Open)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                    _sockets.TryRemove(socket, out _);
-                    break;
+                    var result = await socket.ReceiveAsync(
+                        new ArraySegment<byte>(buffer), 
+                        _cts.Token
+                    );
+
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        await HandleClientDisconnection(socket);
+                        break;
+                    }
+                    else if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        //decode message and broadcast it to all clients
+                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        Console.WriteLine($"Received message: {message}");
+                        await BroadcastMessage(message);
+                    }
                 }
-                else if(result.MessageType == WebSocketMessageType.Text)
-                {
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    BroadcastMessage(message);
-                }
+            }
+            catch (WebSocketException ex)
+            {
+                Console.WriteLine($"WebSocket error: {ex.Message}");
+                await HandleClientDisconnection(socket);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error: {ex.Message}");
+                await HandleClientDisconnection(socket);
             }
         }
 
-        private async void BroadcastMessage(string message)
+        private async Task HandleClientDisconnection(WebSocket socket)
         {
-            var messageBuffer = Encoding.UTF8.GetBytes(message);
-            var tasks = new List<Task>();
-
-            foreach(var socket in _sockets.Keys)
+            try
             {
-                if(socket.State == WebSocketState.Open)
+                if (socket.State == WebSocketState.Open)
                 {
-                    tasks.Add(socket.SendAsync(new ArraySegment<byte>(messageBuffer), WebSocketMessageType.Text, true, CancellationToken.None));
+                    //close socket
+                    await socket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Client disconnected",
+                        CancellationToken.None
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during disconnection: {ex.Message}");
+            }
+            finally
+            {
+                //remove socket from dictionary
+                _sockets.TryRemove(socket, out _);
+                Console.WriteLine("Client disconnected and removed from room.");
+            }
+        }
+
+        private async Task BroadcastMessage(string message)
+        {
+            var deadSockets = new List<WebSocket>();
+
+            //encode message
+            var messageBuffer = Encoding.UTF8.GetBytes(message);
+
+            foreach (var socket in _sockets.Keys)
+            {
+                //check if socket is still open
+                if (socket.State != WebSocketState.Open)
+                {
+                    deadSockets.Add(socket);
+                    continue;
+                }
+
+                try
+                {
+                    //send message to socket
+                    await socket.SendAsync(
+                        new ArraySegment<byte>(messageBuffer),
+                        WebSocketMessageType.Text,
+                        true,
+                        _cts.Token
+                    );
+                }
+                catch (Exception)
+                {
+                    deadSockets.Add(socket);
                 }
             }
 
-            await Task.WhenAll(tasks);
+            //handle disconnections for dead sockets
+            foreach (var deadSocket in deadSockets)
+            {
+                await HandleClientDisconnection(deadSocket);
+            }
         }
 
-
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+        }
     }
 }
