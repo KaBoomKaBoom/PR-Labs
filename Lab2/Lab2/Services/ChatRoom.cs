@@ -9,12 +9,11 @@ namespace Lab2.Services
     {
         private ConcurrentDictionary<WebSocket, string> _sockets = new();
 
-        //cancelattion token (connection)
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         public void AddConnection(WebSocket socket)
         {
-            _sockets[socket] = string.Empty;
+            _sockets[socket] = null; // Initially set as null
             _ = ReceiveMessages(socket);
         }
 
@@ -36,9 +35,11 @@ namespace Lab2.Services
                         var jsonMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
                         var chatMessage = ChatMessage.Deserialize(jsonMessage);
 
-                        if (chatMessage.Type == "connect")
+                        // Check if this is a connect message and set the name if not already set
+                        if (chatMessage.Type == "connect" && _sockets[socket] == null)
                         {
-                            Console.WriteLine($"{chatMessage.Name} connected to {chatMessage.Room}");
+                            _sockets[socket] = chatMessage.Name;
+                            await BroadcastMessage($"{chatMessage.Name} connected to {chatMessage.Room}");
                         }
                         else if (chatMessage.Type == "message")
                         {
@@ -59,19 +60,17 @@ namespace Lab2.Services
             }
         }
 
-
         private async Task HandleClientDisconnection(WebSocket socket)
         {
-            if (_sockets.TryRemove(socket, out string clientName)) // Try to remove the socket and get the client name
+            if (_sockets.TryRemove(socket, out string clientName))
             {
-                await BroadcastMessage($"{clientName} has left the chat."); // Broadcast leave message
+                await BroadcastMessage($"{clientName} has left the chat.");
             }
 
             try
             {
                 if (socket.State == WebSocketState.Open)
                 {
-                    // close socket
                     await socket.CloseAsync(
                         WebSocketCloseStatus.NormalClosure,
                         "Client disconnected",
@@ -92,13 +91,10 @@ namespace Lab2.Services
         private async Task BroadcastMessage(string message)
         {
             var deadSockets = new List<WebSocket>();
-
-            // Encode message
             var messageBuffer = Encoding.UTF8.GetBytes(message);
 
             foreach (var socket in _sockets.Keys)
             {
-                // Check if socket is still open
                 if (socket.State != WebSocketState.Open)
                 {
                     deadSockets.Add(socket);
@@ -107,7 +103,6 @@ namespace Lab2.Services
 
                 try
                 {
-                    // Send message to socket
                     await socket.SendAsync(
                         new ArraySegment<byte>(messageBuffer),
                         WebSocketMessageType.Text,
@@ -121,7 +116,6 @@ namespace Lab2.Services
                 }
             }
 
-            // Handle disconnections for dead sockets
             foreach (var deadSocket in deadSockets)
             {
                 await HandleClientDisconnection(deadSocket);
@@ -134,4 +128,5 @@ namespace Lab2.Services
             _cts.Dispose();
         }
     }
+
 }
