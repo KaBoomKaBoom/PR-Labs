@@ -1,12 +1,15 @@
 public class FileService
 {
+    // Mutex to lock file access
     private static Mutex fileMutex = new Mutex();
+    // Semaphore to signal that all write operations are finished
     private static SemaphoreSlim writeSemaphore = new SemaphoreSlim(0);
     private static int writeCount = 0; // Keeps track of active write threads
     private const string FilePath = "sharedFile.txt";
 
     public static void WriteToFile(string data)
     {
+        //Aquire the mutex
         fileMutex.WaitOne();
 
         try
@@ -19,6 +22,7 @@ public class FileService
         }
         finally
         {
+            //Release the mutex
             fileMutex.ReleaseMutex();
 
             //Decrement number of write operations and check
@@ -32,6 +36,7 @@ public class FileService
 
     public static void ReadFromFile()
     {
+        //Aquire the mutex
         fileMutex.WaitOne();
 
         try
@@ -46,16 +51,19 @@ public class FileService
         }
         finally
         {
+            //Release the mutex
             fileMutex.ReleaseMutex();
         }
     }
     public static void IncrementWriteCount()
     {
+        //Increment number of write operations
         Interlocked.Increment(ref writeCount);
     }
 
     public static void WaitForWritesToComplete()
     {
+        //Wait for all write operations to finish
         writeSemaphore.Wait();
     }
 }
