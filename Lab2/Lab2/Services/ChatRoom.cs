@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
+using Lab2.Helpers;
 
 namespace Lab2.Services
 {
@@ -19,17 +20,12 @@ namespace Lab2.Services
 
         private async Task ReceiveMessages(WebSocket socket)
         {
-            //buffer to recevie messages from socket
             var buffer = new byte[1024 * 4];
             try
             {
                 while (socket.State == WebSocketState.Open)
                 {
-                    var result = await socket.ReceiveAsync(
-                        new ArraySegment<byte>(buffer), 
-                        _cts.Token
-                    );
-
+                    var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         await HandleClientDisconnection(socket);
@@ -37,10 +33,17 @@ namespace Lab2.Services
                     }
                     else if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        //decode message and broadcast it to all clients
-                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        Console.WriteLine($"Received message: {message}");
-                        await BroadcastMessage(message);
+                        var jsonMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        var chatMessage = ChatMessage.Deserialize(jsonMessage);
+
+                        if (chatMessage.Type == "connect")
+                        {
+                            Console.WriteLine($"{chatMessage.Name} connected to {chatMessage.Room}");
+                        }
+                        else if (chatMessage.Type == "message")
+                        {
+                            await BroadcastMessage($"{chatMessage.Name}: {chatMessage.Content}");
+                        }
                     }
                 }
             }
@@ -56,13 +59,19 @@ namespace Lab2.Services
             }
         }
 
+
         private async Task HandleClientDisconnection(WebSocket socket)
         {
+            if (_sockets.TryRemove(socket, out string clientName)) // Try to remove the socket and get the client name
+            {
+                await BroadcastMessage($"{clientName} has left the chat."); // Broadcast leave message
+            }
+
             try
             {
                 if (socket.State == WebSocketState.Open)
                 {
-                    //close socket
+                    // close socket
                     await socket.CloseAsync(
                         WebSocketCloseStatus.NormalClosure,
                         "Client disconnected",
@@ -76,8 +85,6 @@ namespace Lab2.Services
             }
             finally
             {
-                //remove socket from dictionary
-                _sockets.TryRemove(socket, out _);
                 Console.WriteLine("Client disconnected and removed from room.");
             }
         }
@@ -86,12 +93,12 @@ namespace Lab2.Services
         {
             var deadSockets = new List<WebSocket>();
 
-            //encode message
+            // Encode message
             var messageBuffer = Encoding.UTF8.GetBytes(message);
 
             foreach (var socket in _sockets.Keys)
             {
-                //check if socket is still open
+                // Check if socket is still open
                 if (socket.State != WebSocketState.Open)
                 {
                     deadSockets.Add(socket);
@@ -100,7 +107,7 @@ namespace Lab2.Services
 
                 try
                 {
-                    //send message to socket
+                    // Send message to socket
                     await socket.SendAsync(
                         new ArraySegment<byte>(messageBuffer),
                         WebSocketMessageType.Text,
@@ -114,7 +121,7 @@ namespace Lab2.Services
                 }
             }
 
-            //handle disconnections for dead sockets
+            // Handle disconnections for dead sockets
             foreach (var deadSocket in deadSockets)
             {
                 await HandleClientDisconnection(deadSocket);
