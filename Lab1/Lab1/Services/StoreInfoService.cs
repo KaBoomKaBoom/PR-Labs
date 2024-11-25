@@ -19,7 +19,7 @@ namespace Lab1.Services
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-            var productNodes = htmlDoc.DocumentNode.SelectNodes("//figure[contains(@class, 'card-product')]");
+            var productNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'grid-item uk-box-shadow-hover-medium')]");
             if (productNodes != null)
             {
                 foreach (var productNode in productNodes)

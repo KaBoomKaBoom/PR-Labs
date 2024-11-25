@@ -5,7 +5,7 @@ using HtmlAgilityPack;
 namespace Lab1.Services
 {
     public class ExtractProductService
-    {          
+    {
         private ValidationService _validationService;
 
         public ExtractProductService()
@@ -13,25 +13,24 @@ namespace Lab1.Services
             _validationService = new ValidationService();
         }
         public string ExtractProductName(HtmlNode productNode)
-        {   
-            var nameNode = productNode.SelectSingleNode(".//div[contains(@class, 'grid-item')]//figcaption//a[contains(@class, 'ga-item')]");
+        {
+            var nameNode = productNode.SelectSingleNode(".//a//span[contains(@class, 'product-title')]");
             string name = nameNode != null ? nameNode.InnerText.Trim() : "Name not found";
             return name;
         }
         public decimal ExtractProductPrice(HtmlNode productNode)
-        {   
-            var priceNode = productNode.SelectSingleNode(".//div[contains(@class, 'bottom-wrap')]//div[contains(@class, 'price-wrap')]//span[contains(@class, 'price-new')]/b");
-            string price = priceNode != null ? priceNode.InnerText.Trim() : "Price not found";
+        {
+            var priceNode = productNode.SelectSingleNode(".//span[contains(@class, 'price-new')]");
+            string price = priceNode != null ? priceNode.InnerText.Replace("lei", "").Trim() : productNode.SelectSingleNode(".//span[contains(@class, 'price')]").InnerText.Replace("lei", "").Trim();
             return _validationService.ValidatePrice(price.Trim());
         }
-
         public string ExtractProductLink(HtmlNode productNode)
         {
-            // Extract product name
-            var nameNode = productNode.SelectSingleNode(".//div[contains(@class, 'grid-item')]//figcaption//a[contains(@class, 'ga-item')]");
-            string link = nameNode != null ? nameNode.GetAttributeValue("href", string.Empty) : "Link not found";
+            var linkNode = productNode.SelectSingleNode(".//a[contains(@href, 'http')]");
+            string link = linkNode != null ? linkNode.GetAttributeValue("href", string.Empty) : "Link not found";
             return link;
         }
+
         public string ExtractProductResolution(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
