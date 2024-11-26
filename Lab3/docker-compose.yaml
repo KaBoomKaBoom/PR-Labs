@@ -1,0 +1,17 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.11-management-alpine  # Ensure a version supporting Streams
+    container_name: rabbitmq
+    ports:
+      - "5552:5552"   # RabbitMQ Streams
+      #- "5672:5672"   # AMQP protocol
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest        # Default username
+      RABBITMQ_DEFAULT_PASS: guest      # Default password
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf # Custom config
+    command: >
+      sh -c "rabbitmq-plugins enable rabbitmq_stream &&
+             rabbitmq-plugins enable rabbitmq_management &&
+             rabbitmq-server"
