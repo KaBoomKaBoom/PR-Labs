@@ -2,7 +2,7 @@ using System.Net;
 
 public class FtpDownloader
 {
-    public async Task DownloadFile(string ftpUrl, string username, string password, string filePath)
+    public async Task<string> DownloadFile(string ftpUrl, string username, string password, string filePath)
     {
         try
         {
@@ -21,10 +21,13 @@ public class FtpDownloader
             // Step 2: Read the downloaded file as a string
             string fileContent = File.ReadAllText(localFilePath);
             Console.WriteLine($"File content: {fileContent}");
+
+            return localFilePath;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"An error occurred: {ex.Message}");
+            return string.Empty;
         }
     }
 }
