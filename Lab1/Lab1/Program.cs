@@ -7,6 +7,9 @@ using RabbitMQ.Stream.Client;
 using System.Net;
 
 var sendToRMQ = new SendToRMQ();
+var ftpUploader = new FtpUploader();
+ftpUploader.UploadFile("ftp://localhost:21", "user", "pass", "productsInEuro.json");
+
 var requestSiteService = new RequestSiteService();
 List<Product>? productsAll = new List<Product>();
 
@@ -39,7 +42,7 @@ var serializationService = new SerializationService();
 //Inicial data extracted from site
 // var json = storeInfoService.StoreAsJson(products);
 var json = serializationService.SerializeListToJson(productsAll);
-var xml = serializationService.SerializeListToXML(productsAll);
+// var xml = serializationService.SerializeListToXML(productsAll);
 File.WriteAllText("productsInicial.json", json);
 //File.WriteAllText("productsInicial.xml", xml);
 

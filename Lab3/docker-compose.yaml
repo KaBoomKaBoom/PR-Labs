@@ -15,3 +15,16 @@ services:
       sh -c "rabbitmq-plugins enable rabbitmq_stream &&
              rabbitmq-plugins enable rabbitmq_management &&
              rabbitmq-server"
+
+  ftp_server:
+    image: stilliard/pure-ftpd:hardened
+    container_name: ftp_server
+    ports:
+      - "21:21"
+      - "30000-30009:30000-30009"
+    environment:
+      FTP_USER_NAME: user
+      FTP_USER_PASS: pass
+      FTP_USER_HOME: /home/ftpusers/user
+    volumes:
+      - ./ftp:/home/ftpusers/user
