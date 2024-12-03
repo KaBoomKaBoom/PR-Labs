@@ -6,6 +6,8 @@ using RabbitMQ.Stream.Client.Reliable;
 
 public class ConsumeFromRMQ
 {
+    private Server _server = new Server();
+
     public async void Consume(StreamSystem streamSystem)
     {
         var streamName = "products";
@@ -22,8 +24,10 @@ public class ConsumeFromRMQ
             OffsetSpec = new OffsetTypeFirst(),
             MessageHandler = async (stream, _, _, message) =>
             {
+                var receivedData = Encoding.UTF8.GetString(message.Data.Contents);
                 Console.WriteLine($"Stream: {stream} - " +
-                                  $"Received message: {Encoding.UTF8.GetString(message.Data.Contents)}");
+                                  $"Received message: {receivedData}");
+                await _server.SendPostRequest(receivedData);
                 await Task.CompletedTask;
             }
         };

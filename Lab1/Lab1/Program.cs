@@ -12,7 +12,7 @@ List<Product>? productsAll = new List<Product>();
 
 var streamSystem = await StreamSystem.Create(new StreamSystemConfig());
 var count = 1;
-for (int i = 2; i < 5; i++)
+for (int i = 2; i < 3; i++)
 {
     var htmlContent = await requestSiteService.GetSiteContent($"https://enter.online/telefoane/smartphone-uri?page={i}");
 
