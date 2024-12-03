@@ -8,6 +8,9 @@ class Program
 {
     static async Task Main(string[] args)
     {
+        var ftpDownloader = new FtpDownloader();
+        await ftpDownloader.DownloadFile("ftp://localhost:21/productsInEuro.json", "user", "pass", "productsInEuro.json");
+
         var streamSystemConfig = new StreamSystemConfig
         {
             Endpoints = new List<EndPoint> { new DnsEndPoint("localhost", 5552) },

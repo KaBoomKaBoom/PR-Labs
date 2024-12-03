@@ -12,7 +12,7 @@ public class FtpUploader
             ServicePointManager.Expect100Continue = false;
             string fileName = Path.GetFileName(filePath);
             string uploadUrl = $"{ftpUrl}/{fileName}";
-
+            Console.WriteLine($"Uploading file to: {uploadUrl}");
             using (WebClient client = new WebClient())
             {
                 // Set credentials

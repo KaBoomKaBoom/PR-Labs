@@ -7,6 +7,7 @@ using RabbitMQ.Stream.Client;
 using System.Net;
 
 var sendToRMQ = new SendToRMQ();
+
 var ftpUploader = new FtpUploader();
 ftpUploader.UploadFile("ftp://localhost:21", "user", "pass", "productsInEuro.json");
 
