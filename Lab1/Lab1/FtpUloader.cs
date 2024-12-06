@@ -11,7 +11,7 @@ public class FtpUploader
             // Disable Expect 100-Continue header
             ServicePointManager.Expect100Continue = false;
             string fileName = Path.GetFileName(filePath);
-            string uploadUrl = $"{ftpUrl}/{fileName}";
+            string uploadUrl = $"{ftpUrl.TrimEnd('/')}/{fileName}";
             Console.WriteLine($"Uploading file to: {uploadUrl}");
             using (WebClient client = new WebClient())
             {

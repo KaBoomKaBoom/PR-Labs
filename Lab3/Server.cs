@@ -25,4 +25,40 @@ public class Server
         }
     }
 
+    public async Task SendMultipartPostRequest(string filePath)
+    {
+        try
+        {
+            using var multipartContent = new MultipartFormDataContent();
+
+            // Open the file stream and add it to the multipart content
+            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            var fileStreamContent = new StreamContent(fileStream);
+
+            // Set the content type to "application/json" (if the file is JSON)
+            fileStreamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            // Add the file to the multipart form data with name "file"
+            multipartContent.Add(fileStreamContent, "file", Path.GetFileName(filePath));
+
+            // Send the POST request
+            var response = await _client.PostAsync("http://localhost:8080/upload", multipartContent);
+
+            // Check the response status
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("File successfully uploaded to the server.");
+            }
+            else
+            {
+                var errorDetails = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to upload the file. Status Code: {response.StatusCode}, Details: {errorDetails}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
 }

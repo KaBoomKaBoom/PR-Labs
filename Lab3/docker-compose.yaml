@@ -20,7 +20,7 @@ services:
     image: stilliard/pure-ftpd:hardened
     container_name: ftp_server
     ports:
-      - "21:21"
+      - "2121:21"
       - "30000-30009:30000-30009"
     environment:
       FTP_USER_NAME: user

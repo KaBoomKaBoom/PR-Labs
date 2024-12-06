@@ -51,8 +51,8 @@ else
 app.MapControllers();
 
 // Chat room setup
-var webSocketRoom = new ChatRoom();
-var webSocketServerService = new WebSocketServerService();
-Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
+// var webSocketRoom = new ChatRoom();
+// var webSocketServerService = new WebSocketServerService();
+// Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
 
 app.Run();
