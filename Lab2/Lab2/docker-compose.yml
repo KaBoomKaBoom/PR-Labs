@@ -1,17 +1,56 @@
 version: '3.8'
 services:
-  lab2:
+  lab2-node1:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: lab2-container
+    container_name: lab2-node1-container
     ports:
-      - "8080:8080"
-      - "5000:5000"
+      - "8081:8081" # Expose the internal 8080 port on 8081
+      - "5001:5000" # Expose the internal 5000 port on 5001
     depends_on:
       - sql-server
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - NODE_ID=node1 # Unique identifier for this node
+      - PEERS=node2:8082,node3:8083 # Other node addresses
+      - NODE_PORT=8081
+    networks:
+      - lab2_default
+
+  lab2-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab2-node2-container
+    ports:
+      - "8082:8082" # Expose the internal 8080 port on 8082
+      - "5002:5000" # Expose the internal 5000 port on 5002
+    depends_on:
+      - sql-server
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - NODE_ID=node2 # Unique identifier for this node
+      - PEERS=node1:8081,node3:8083 # Other node addresses
+      - NODE_PORT=8082
+    networks:
+      - lab2_default
+
+  lab2-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab2-node3-container
+    ports:
+      - "8083:8083" # Expose the internal 8080 port on 8083
+      - "5003:5000" # Expose the internal 5000 port on 5003
+    depends_on:
+      - sql-server
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - NODE_ID=node3 # Unique identifier for this node
+      - PEERS=node1:8081,node2:8082 # Other node addresses
+      - NODE_PORT=8083
     networks:
       - lab2_default
 

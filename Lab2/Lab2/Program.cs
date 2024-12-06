@@ -32,9 +32,27 @@ builder.Services.AddCors((options) =>
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbCompletition>();
+
+// Raft Node setup
+var nodeId = Environment.GetEnvironmentVariable("NODE_ID") ?? "node1";
+var currentPort = int.Parse(Environment.GetEnvironmentVariable("NODE_PORT") ?? "8080"); // Use internal port
+
+var peersString = Environment.GetEnvironmentVariable("PEERS") ?? "";
+var peers = peersString.Split(',')
+    .Select(peer => 
+    {
+        var parts = peer.Split(':');
+        return $"127.0.0.1:{parts[1]}";
+    })
+    .Where(peer => !peer.Contains($"127.0.0.1:{currentPort}"))
+    .ToList();
+
+// Initialize Raft Node
+var raftNode = new RaftNode(currentPort, nodeId, peers);
+raftNode.Start();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -50,8 +68,14 @@ else
 
 app.MapControllers();
 
-// Chat room setup
-// var webSocketRoom = new ChatRoom();
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    // Stop Raft node on application shutdown
+    raftNode.Stop();
+});
+
+// Optionally, setup WebSocket chat room (if applicable)
+/// var webSocketRoom = new ChatRoom();
 // var webSocketServerService = new WebSocketServerService();
 // Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
 
