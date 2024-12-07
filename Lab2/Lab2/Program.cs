@@ -2,6 +2,8 @@ using Lab2.Helpers;
 using Lab2.Models;
 using Lab2.Services;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Runtime.InteropServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,25 +35,46 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbCompletition>();
 
-// Raft Node setup
-var nodeId = Environment.GetEnvironmentVariable("NODE_ID") ?? "node1";
-var currentPort = int.Parse(Environment.GetEnvironmentVariable("NODE_PORT") ?? "8080"); // Use internal port
-
-var peersString = Environment.GetEnvironmentVariable("PEERS") ?? "";
-var peers = peersString.Split(',')
-    .Select(peer => 
-    {
-        var parts = peer.Split(':');
-        return $"127.0.0.1:{parts[1]}";
-    })
-    .Where(peer => !peer.Contains($"127.0.0.1:{currentPort}"))
-    .ToList();
-
-// Initialize Raft Node
-var raftNode = new RaftNode(currentPort, nodeId, peers);
-raftNode.Start();
+// Read environment variables to configure the node
+string nodeId = Environment.GetEnvironmentVariable("NODE_ID") ?? "node1";
+int nodePort = int.Parse(Environment.GetEnvironmentVariable("NODE_PORT") ?? "8081");
+string peersEnv = Environment.GetEnvironmentVariable("PEERS") ?? string.Empty;
+string[] peers = peersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 var app = builder.Build();
+
+// Create and start the Raft node
+var node = new RaftNode(nodeId, nodePort, peers);
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+
+Console.WriteLine($"Starting node {nodeId} on port {nodePort}");
+
+// Handle both SIGTERM (Docker) and CTRL+C
+AppDomain.CurrentDomain.ProcessExit += (s, e) => 
+{
+    Console.WriteLine($"[{nodeId}] Received shutdown signal. Starting graceful shutdown...");
+    node.Stop();
+    Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
+};
+
+Console.CancelKeyPress += (sender, eventArgs) =>
+{
+    eventArgs.Cancel = true; // Prevent immediate termination
+    Console.WriteLine($"[{nodeId}] Received CTRL+C. Starting graceful shutdown...");
+    node.Stop();
+    Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
+    Environment.Exit(0);
+};
+
+// Register shutdown hook with ASP.NET Core lifetime events
+lifetime.ApplicationStopping.Register(() =>
+{
+    Console.WriteLine($"[{nodeId}] Application stopping. Initiating node shutdown...");
+    node.Stop();
+    Console.WriteLine($"[{nodeId}] Node shutdown complete.");
+});
+
+await node.StartAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -68,11 +91,6 @@ else
 
 app.MapControllers();
 
-app.Lifetime.ApplicationStopping.Register(() =>
-{
-    // Stop Raft node on application shutdown
-    raftNode.Stop();
-});
 
 // Optionally, setup WebSocket chat room (if applicable)
 /// var webSocketRoom = new ChatRoom();

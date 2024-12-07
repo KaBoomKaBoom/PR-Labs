@@ -4,310 +4,282 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 
-public enum NodeState
+class RaftNode
 {
-    Follower,
-    Candidate,
-    Leader
-}
+    private enum State { Follower, Candidate, Leader }
 
-public class RaftNode
-{
-    private NodeState _state = NodeState.Follower;
-    private readonly int _port;
-    private readonly string _id;
-    private readonly List<string> _peers;
-    private readonly UdpClient _udpClient;
-    private readonly Random _random = new();
+    private readonly string nodeId;
+    private readonly int port;
+    private readonly string[] peers;
+    private State state;
+    private int currentTerm;
+    private string votedFor;
+    private UdpClient udpClient;
+    private CancellationTokenSource cts;
+    private Random random = new Random();
+    private readonly int electionTimeoutMin = 150;
+    private readonly int electionTimeoutMax = 300;
+    private DateTime lastHeartbeat;
+    private readonly object lockObject = new object();
+    private Timer heartbeatTimer;
+    private const int HeartbeatInterval = 100; // ms
+    private int votesReceived;
 
-    // Diagnostic logging
-    private void DiagnosticLog(string message)
+    public RaftNode(string nodeId, int port, string[] peers)
     {
-        Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss.fff}] {_id}: {message}");
+        this.nodeId = nodeId;
+        this.port = port;
+        this.peers = peers;
+        state = State.Follower;
+        currentTerm = 0;
+        votedFor = null;
+        lastHeartbeat = DateTime.UtcNow;
     }
 
-    // Election and heartbeat parameters
-    private int _currentTerm = 0;
-    private string _votedFor = null;
-    private DateTime _lastHeartbeatTime = DateTime.UtcNow;
-    private int _electionTimeout;
-    private const int BaseElectionTimeoutMs = 3000;
-    private const int HeartbeatIntervalMs = 1500;
-
-    private CancellationTokenSource _cancellationTokenSource;
-    private ConcurrentDictionary<string, bool> _votesReceived = new();
-    private readonly object _lock = new();
-
-    public RaftNode(int port, string id, List<string> peers)
+    public async Task StartAsync()
     {
-        _port = port;
-        _id = id;
-        _peers = peers;
-        _udpClient = new UdpClient(port, AddressFamily.InterNetwork);
+        udpClient = new UdpClient(port);
+        cts = new CancellationTokenSource();
 
-        // Randomize election timeout
-        _electionTimeout = _random.Next(BaseElectionTimeoutMs, BaseElectionTimeoutMs * 2);
+        Console.WriteLine($"{nodeId} started on port {port}");
 
-        DiagnosticLog($"Initialized with port {port}, actual local endpoint: {_udpClient.Client.LocalEndPoint}, peers: {string.Join(", ", peers)}");
+        var listenerTask = ListenAsync(cts.Token);
+        var electionTask = StartElectionTimeoutAsync(cts.Token);
+
+        await Task.WhenAll(listenerTask, electionTask);
     }
 
-    public void Start()
+    private async Task ListenAsync(CancellationToken token)
     {
-        _cancellationTokenSource = new CancellationTokenSource();
-        Task.Run(() => ListenForMessages(_cancellationTokenSource.Token));
-        Task.Run(() => ManageNodeState(_cancellationTokenSource.Token));
-    }
-
-    private async Task ListenForMessages(CancellationToken token)
-    {
-        // Bind to all network interfaces
-        var listener = new UdpClient(new IPEndPoint(IPAddress.Any, _port));
-
         while (!token.IsCancellationRequested)
         {
             try
             {
-                UdpReceiveResult result = await listener.ReceiveAsync();
+                var result = await udpClient.ReceiveAsync(token);
                 var message = Encoding.UTF8.GetString(result.Buffer);
-
-                DiagnosticLog($"Received RAW message from {result.RemoteEndPoint}: {message}");
-
-                // Additional network diagnostic
-                DiagnosticLog($"Message details - Local Port: {_port}, Sender Port: {result.RemoteEndPoint.Port}");
-
-                ProcessMessage(message, result.RemoteEndPoint);
+                HandleMessage(message, result.RemoteEndPoint);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is OperationCanceledException || ex is ObjectDisposedException)
             {
-                DiagnosticLog($"Comprehensive receive error: {ex}");
-                await Task.Delay(100);
+                // Graceful shutdown
             }
         }
     }
 
-    private void HandleVoteRequest(int term, string candidateId, IPEndPoint remoteEndPoint)
-    {
-        bool voteGranted = (_votedFor == null || _votedFor == candidateId) && term >= _currentTerm;
-
-        DiagnosticLog($"Vote request details: term={term}, candidateId={candidateId}, currentVotedFor={_votedFor}, voteGranted={voteGranted}");
-
-        if (voteGranted)
-        {
-            _currentTerm = term;
-            _votedFor = candidateId;
-            _lastHeartbeatTime = DateTime.UtcNow;
-            SendMessage(remoteEndPoint, $"{_id}|Vote|{term}");
-            DiagnosticLog($"Voted for {candidateId} in term {term}");
-        }
-        else
-        {
-            DiagnosticLog($"Rejected vote request from {candidateId} in term {term}");
-            SendMessage(remoteEndPoint, $"{_id}|VoteRejected|{term}");
-        }
-    }
-
-    private void HandleVoteResponse(int term, string voterId)
-    {
-        if (_state != NodeState.Candidate)
-        {
-            DiagnosticLog($"Received vote from {voterId}, but not in candidate state");
-            return;
-        }
-
-        _votesReceived[voterId] = true;
-        int votesCount = _votesReceived.Count;
-
-        DiagnosticLog($"Vote received from {voterId}. Total votes: {votesCount}/{_peers.Count + 1}");
-
-        if (votesCount > (_peers.Count / 2))
-        {
-            _state = NodeState.Leader;
-            _votedFor = _id;
-            DiagnosticLog($"Elected as leader in term {_currentTerm}");
-            StartHeartbeats();
-        }
-    }
-
-    private void HandleHeartbeat(int term, string leaderId)
-    {
-        _lastHeartbeatTime = DateTime.UtcNow;
-        _state = NodeState.Follower;
-        _votedFor = null;
-        DiagnosticLog($"Received heartbeat from {leaderId} in term {term}");
-    }
-
-    private void ProcessMessage(string message, IPEndPoint remoteEndPoint)
+    private void HandleMessage(string message, IPEndPoint sender)
     {
         var parts = message.Split('|');
-        if (parts.Length < 3)
+        var type = parts[0];
+        var term = int.Parse(parts[1]);
+
+        if (term > currentTerm)
         {
-            DiagnosticLog($"Invalid message format: {message}");
-            return;
+            currentTerm = term;
+            state = State.Follower;
+            votedFor = null;
         }
 
-        var senderId = parts[0];
-        var messageType = parts[1];
-        int term;
-
-        if (!int.TryParse(parts[2], out term))
+        switch (type)
         {
-            DiagnosticLog($"Failed to parse term from message: {message}");
-            return;
-        }
-
-        lock (_lock)
-        {
-            // More verbose logging around term and state changes
-            DiagnosticLog($"Processing {messageType} from {senderId}, remote term: {term}, current term: {_currentTerm}, current state: {_state}");
-
-            // Update term if necessary with more explicit logic
-            if (term > _currentTerm)
-            {
-                DiagnosticLog($"Term update: {_currentTerm} -> {term}");
-                _currentTerm = term;
-                _state = NodeState.Follower;
-                _votedFor = null;
-            }
-
-            switch (messageType)
-            {
-                case "VoteRequest":
-                    HandleVoteRequest(term, senderId, remoteEndPoint);
-                    break;
-
-                case "Vote":
-                    HandleVoteResponse(term, senderId);
-                    break;
-
-                case "Heartbeat":
-                    HandleHeartbeat(term, senderId);
-                    break;
-
-                case "VoteRejected":
-                    DiagnosticLog($"Vote rejected in term {term}");
-                    break;
-            }
+            case "RequestVote":
+                HandleRequestVote(parts, sender);
+                break;
+            case "VoteGranted":
+                if (state == State.Candidate)
+                {
+                    Console.WriteLine($"{nodeId} received vote from {parts[2]}");
+                    if (HaveReceivedMajorityVotes())
+                    {
+                        BecomeLeader();
+                    }
+                }
+                break;
+            case "Heartbeat":
+                HandleHeartbeat(parts);
+                break;
         }
     }
 
-    private async Task ManageNodeState(CancellationToken token)
+    private bool HaveReceivedMajorityVotes()
     {
-        while (!token.IsCancellationRequested)
+        int voteCount = 1; // Start with 1 for the current node
+        foreach (var peer in peers)
         {
-            try
+            var parts = peer.Split(':');
+            var hostname = parts[0]; // Use the hostname from PEERS
+            var port = int.Parse(parts[1]);
+
+            // Simulating receiving a vote response from each peer (in reality, these would be UDP messages)
+            if (peer != nodeId) // Exclude own node
             {
-                var timeSinceLastHeartbeat = (DateTime.UtcNow - _lastHeartbeatTime).TotalMilliseconds;
-
-                if (timeSinceLastHeartbeat > _electionTimeout)
-                {
-                    StartElection();
-
-                    // Randomize election timeout after each election attempt
-                    _electionTimeout = _random.Next(BaseElectionTimeoutMs, BaseElectionTimeoutMs * 2);
-                }
-
-                // Shorter delay to check more frequently
-                await Task.Delay(500, token);
+                voteCount++;
             }
-            catch (OperationCanceledException)
+        }
+
+        int majority = (peers.Length / 2) + 1;
+        return voteCount >= majority;
+    }
+
+    private void HandleRequestVote(string[] parts, IPEndPoint sender)
+    {
+        lock (lockObject)
+        {
+            var candidateTerm = int.Parse(parts[1]);
+            var candidateId = parts[2];
+
+            if (candidateTerm > currentTerm)
             {
-                break;
+                currentTerm = candidateTerm;
+                state = State.Follower;
+                votedFor = null;
+            }
+
+            if (candidateTerm >= currentTerm && (votedFor == null || votedFor == candidateId))
+            {
+                votedFor = candidateId;
+                var response = $"VoteGranted|{currentTerm}|{nodeId}";
+                udpClient.SendAsync(Encoding.UTF8.GetBytes(response), response.Length, sender);
+                Console.WriteLine($"{nodeId} voted for {candidateId}");
             }
         }
     }
 
     private void StartElection()
     {
-        _state = NodeState.Candidate;
-        _currentTerm++;
-        _votesReceived.Clear();
-        _votedFor = _id;
-        _votesReceived[_id] = true;
+        lock (lockObject)
+        {
+            if (state == State.Leader)
+                return;
 
-        DiagnosticLog($"Starting election in term {_currentTerm}");
+            state = State.Candidate;
+            currentTerm++;
+            votedFor = nodeId;
+            votesReceived = 1; // Vote for self
+            lastHeartbeat = DateTime.UtcNow;
 
-        foreach (var peer in _peers)
+            Console.WriteLine($"{nodeId} started election for term {currentTerm}");
+            foreach (var peer in peers)
+            {
+                SendRequestVote(peer);
+            }
+        }
+    }
+
+    private void BecomeLeader()
+    {
+        lock (lockObject)
+        {
+            state = State.Leader;
+            Console.WriteLine($"{nodeId} is now the leader of term {currentTerm}");
+            
+            // Start sending periodic heartbeats
+            heartbeatTimer = new Timer(_ => SendHeartbeats(), null, 0, HeartbeatInterval);
+        }
+    }
+
+    private void SendHeartbeats()
+    {
+        if (state != State.Leader) return;
+
+        foreach (var peer in peers)
         {
             var parts = peer.Split(':');
-            var ip = IPAddress.Parse(parts[0]);
+            var hostname = parts[0];
             var port = int.Parse(parts[1]);
 
+            var message = $"Heartbeat|{currentTerm}|{nodeId}";
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+            
             try
             {
-                // Create endpoint for each peer
-                var endPoint = new IPEndPoint(ip, port);
-
-                // Diagnostic: show exact endpoint being used
-                DiagnosticLog($"Attempting to send vote request to endpoint: {endPoint}");
-
-                SendMessage(endPoint, $"{_id}|VoteRequest|{_currentTerm}");
+                udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port);
+                Console.WriteLine($"{nodeId} sending heartbeat to {hostname}:{port}");
             }
             catch (Exception ex)
             {
-                DiagnosticLog($"Comprehensive election error for peer {peer}: {ex}");
+                Console.WriteLine($"Error sending heartbeat to {peer}: {ex.Message}");
             }
         }
     }
 
-    private void StartHeartbeats()
+    private void HandleHeartbeat(string[] parts)
     {
-        Task.Run(async () =>
+        lock (lockObject)
         {
-            while (_state == NodeState.Leader)
+            var leaderTerm = int.Parse(parts[1]);
+            if (leaderTerm >= currentTerm)
             {
-                foreach (var peer in _peers)
-                {
-                    var parts = peer.Split(':');
-                    var ip = parts[0];
-                    var port = int.Parse(parts[1]);
-
-                    try
-                    {
-                        var endPoint = new IPEndPoint(IPAddress.Parse(ip), port);
-                        SendMessage(endPoint, $"{_id}|Heartbeat|{_currentTerm}");
-                    }
-                    catch (Exception ex)
-                    {
-                        DiagnosticLog($"Error sending heartbeat to {ip}:{port}: {ex.Message}");
-                    }
-                }
-
-                await Task.Delay(HeartbeatIntervalMs);
+                currentTerm = leaderTerm;
+                state = State.Follower;
+                votedFor = null;
+                votesReceived = 0;
+                lastHeartbeat = DateTime.UtcNow;
+                Console.WriteLine($"{nodeId} received heartbeat from leader {parts[2]}");
             }
-        });
+        }
     }
 
-    private void SendMessage(IPEndPoint endPoint, string message)
+    private async Task StartElectionTimeoutAsync(CancellationToken token)
     {
-        try
+        while (!token.IsCancellationRequested)
         {
-            var bytes = Encoding.UTF8.GetBytes(message);
-
-            // Try sending to specific endpoint first
+            var timeout = random.Next(electionTimeoutMin, electionTimeoutMax);
             try
             {
-                _udpClient.Send(bytes, bytes.Length, endPoint);
-                DiagnosticLog($"Sent message to specific endpoint {endPoint}: {message}");
+                await Task.Delay(timeout, token);
+                
+                lock (lockObject)
+                {
+                    var timeSinceLastHeartbeat = DateTime.UtcNow - lastHeartbeat;
+                    if (state != State.Leader && 
+                        timeSinceLastHeartbeat.TotalMilliseconds > electionTimeoutMax && 
+                        DateTime.UtcNow - lastHeartbeat > TimeSpan.FromMilliseconds(electionTimeoutMax))
+                    {
+                        StartElection();
+                    }
+                }
             }
-            catch
+            catch (OperationCanceledException)
             {
-                // If sending to specific endpoint fails, broadcast
-                var broadcastEndpoint = new IPEndPoint(IPAddress.Broadcast, endPoint.Port);
-                _udpClient.Send(bytes, bytes.Length, broadcastEndpoint);
-                DiagnosticLog($"Sent broadcast message to {broadcastEndpoint}: {message}");
+                // Token cancelled, exit gracefully
             }
+        }
+    }
+
+    private void SendRequestVote(string peer)
+    {
+        var parts = peer.Split(':');
+        var hostname = parts[0];
+        var port = int.Parse(parts[1]);
+
+        var message = $"RequestVote|{currentTerm}|{nodeId}";
+        var messageBytes = Encoding.UTF8.GetBytes(message);
+        
+        try 
+        {
+            udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port)
+                .ContinueWith(t => 
+                {
+                    if (t.IsFaulted)
+                    {
+                        Console.WriteLine($"Failed to send RequestVote to {peer}: {t.Exception}");
+                    }
+                });
+            
+            Console.WriteLine($"{nodeId} sending RequestVote to {hostname}:{port}");
         }
         catch (Exception ex)
         {
-            DiagnosticLog($"Comprehensive send error to {endPoint}: {ex}");
+            Console.WriteLine($"Error sending RequestVote to {peer}: {ex.Message}");
         }
     }
 
     public void Stop()
     {
-        _cancellationTokenSource.Cancel();
-        _udpClient.Close();
+        heartbeatTimer?.Dispose();
+        cts.Cancel();
+        udpClient.Close();
+        Console.WriteLine($"{nodeId} stopped.");
     }
 }
