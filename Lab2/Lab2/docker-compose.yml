@@ -6,9 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: lab2-node1-container
     ports:
-      - "8081:8080/tcp"
       - "8081:8080/udp"
-      - "5001:5000" # HTTP-based port
+      - "5001:5000/tcp" # HTTP-based port
     depends_on:
       - sql-server
     environment:
@@ -25,9 +24,8 @@ services:
       dockerfile: Dockerfile
     container_name: lab2-node2-container
     ports:
-      - "8082:8080/tcp"
       - "8082:8080/udp"
-      - "5002:5000" # HTTP-based port
+      - "5002:5000/tcp" # HTTP-based port
     depends_on:
       - sql-server
     environment:
@@ -44,9 +42,8 @@ services:
       dockerfile: Dockerfile
     container_name: lab2-node3-container
     ports:
-      - "8083:8080/tcp"
       - "8083:8080/udp"
-      - "5003:5000" # HTTP-based port
+      - "5003:5000/tcp" # HTTP-based port
     depends_on:
       - sql-server
     environment:
@@ -62,9 +59,8 @@ services:
       dockerfile: Dockerfile
     container_name: lab2-node4-container
     ports:
-      - "8084:8080/tcp"
       - "8084:8080/udp"
-      - "5004:5000" # HTTP-based port
+      - "5004:5000/tcp" # HTTP-based port
     depends_on:
       - sql-server
     environment:

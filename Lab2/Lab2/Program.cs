@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+builder.WebHost.UseUrls("http://*:8080", "http://*:5000");
 // Add the connection string from appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddCors((options) =>
@@ -43,38 +44,25 @@ string[] peers = peersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 var app = builder.Build();
 
-// Create and start the Raft node
-var node = new RaftNode(nodeId, nodePort, peers);
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-
-Console.WriteLine($"Starting node {nodeId} on port {nodePort}");
-
-// Handle both SIGTERM (Docker) and CTRL+C
-AppDomain.CurrentDomain.ProcessExit += (s, e) => 
+Task.Run(() =>
 {
-    Console.WriteLine($"[{nodeId}] Received shutdown signal. Starting graceful shutdown...");
-    node.Stop();
-    Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
-};
+    // Create and start the Raft node
+    var node = new RaftNode(nodeId, nodePort, peers);
+    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 
-Console.CancelKeyPress += (sender, eventArgs) =>
-{
-    eventArgs.Cancel = true; // Prevent immediate termination
-    Console.WriteLine($"[{nodeId}] Received CTRL+C. Starting graceful shutdown...");
-    node.Stop();
-    Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
-    Environment.Exit(0);
-};
+    Console.WriteLine($"Starting node {nodeId} on port {nodePort}");
 
-// Register shutdown hook with ASP.NET Core lifetime events
-lifetime.ApplicationStopping.Register(() =>
-{
-    Console.WriteLine($"[{nodeId}] Application stopping. Initiating node shutdown...");
-    node.Stop();
-    Console.WriteLine($"[{nodeId}] Node shutdown complete.");
+    // Handle both SIGTERM (Docker) and CTRL+C
+    AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+    {
+        Console.WriteLine($"[{nodeId}] Received shutdown signal. Starting graceful shutdown...");
+        node.Stop();
+        Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
+    };
+
+
+    node.StartAsync();
 });
-
-await node.StartAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

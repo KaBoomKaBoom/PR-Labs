@@ -7,7 +7,16 @@ WORKDIR /app
 
 # Expose ports for the web server
 EXPOSE 8080
+EXPOSE 8081
+EXPOSE 8082
+EXPOSE 8083
+EXPOSE 8084
 EXPOSE 5000
+EXPOSE 5001
+EXPOSE 5002
+EXPOSE 5003
+EXPOSE 5004
+
 
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
