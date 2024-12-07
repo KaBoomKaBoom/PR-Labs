@@ -1,3 +1,6 @@
+//TODO 1: When a node stops, delete its address from the list of peers of the remaining nodes.
+
+
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -18,12 +21,12 @@ class RaftNode
     private UdpClient udpClient;
     private CancellationTokenSource cts;
     private Random random = new Random();
-    private readonly int electionTimeoutMin = 150;
-    private readonly int electionTimeoutMax = 300;
+    private readonly int electionTimeoutMin = 3000;
+    private readonly int electionTimeoutMax = 4000;
     private DateTime lastHeartbeat;
     private readonly object lockObject = new object();
     private Timer heartbeatTimer;
-    private const int HeartbeatInterval = 100; // ms
+    private const int HeartbeatInterval = 200; // ms
     private int votesReceived;
 
     public RaftNode(string nodeId, int port, string[] peers)
@@ -39,6 +42,7 @@ class RaftNode
 
     public async Task StartAsync()
     {
+        await Task.Delay(3000);
         udpClient = new UdpClient(port);
         cts = new CancellationTokenSource();
 
@@ -78,6 +82,7 @@ class RaftNode
             currentTerm = term;
             state = State.Follower;
             votedFor = null;
+            Console.WriteLine($"{nodeId} stepping down to Follower for term {currentTerm}");
         }
 
         switch (type)
@@ -88,6 +93,7 @@ class RaftNode
             case "VoteGranted":
                 if (state == State.Candidate)
                 {
+                    votesReceived++;
                     Console.WriteLine($"{nodeId} received vote from {parts[2]}");
                     if (HaveReceivedMajorityVotes())
                     {
@@ -103,21 +109,9 @@ class RaftNode
 
     private bool HaveReceivedMajorityVotes()
     {
-        int voteCount = 1; // Start with 1 for the current node
-        foreach (var peer in peers)
-        {
-            var parts = peer.Split(':');
-            var hostname = parts[0]; // Use the hostname from PEERS
-            var port = int.Parse(parts[1]);
-
-            // Simulating receiving a vote response from each peer (in reality, these would be UDP messages)
-            if (peer != nodeId) // Exclude own node
-            {
-                voteCount++;
-            }
-        }
-
-        int majority = (peers.Length / 2) + 1;
+        int totalNodes = GlobalState.PeerCount + 1; // Include self
+        int voteCount = votesReceived;
+        int majority = (totalNodes / 2) + 1;
         return voteCount >= majority;
     }
 
@@ -170,9 +164,14 @@ class RaftNode
     {
         lock (lockObject)
         {
+            if (state == State.Leader) return; // Prevent multiple leader transitions
+
             state = State.Leader;
             Console.WriteLine($"{nodeId} is now the leader of term {currentTerm}");
-            
+
+            // Stop election timeout as the node is now the leader
+            lastHeartbeat = DateTime.UtcNow;
+
             // Start sending periodic heartbeats
             heartbeatTimer = new Timer(_ => SendHeartbeats(), null, 0, HeartbeatInterval);
         }
@@ -190,7 +189,7 @@ class RaftNode
 
             var message = $"Heartbeat|{currentTerm}|{nodeId}";
             var messageBytes = Encoding.UTF8.GetBytes(message);
-            
+
             try
             {
                 udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port);
@@ -208,14 +207,20 @@ class RaftNode
         lock (lockObject)
         {
             var leaderTerm = int.Parse(parts[1]);
+            var leaderId = parts[2];
+
             if (leaderTerm >= currentTerm)
             {
                 currentTerm = leaderTerm;
-                state = State.Follower;
+                state = State.Follower; // Ensure state transitions to Follower
                 votedFor = null;
                 votesReceived = 0;
-                lastHeartbeat = DateTime.UtcNow;
-                Console.WriteLine($"{nodeId} received heartbeat from leader {parts[2]}");
+                lastHeartbeat = DateTime.UtcNow; // Update the last heartbeat time
+                Console.WriteLine($"{nodeId} received heartbeat from leader {leaderId}");
+            }
+            else
+            {
+                Console.WriteLine($"{nodeId} ignored outdated heartbeat from {leaderId}");
             }
         }
     }
@@ -228,14 +233,16 @@ class RaftNode
             try
             {
                 await Task.Delay(timeout, token);
-                
+
                 lock (lockObject)
                 {
+                    if (state == State.Leader) continue;
+
+                    // If no heartbeat has been received within the timeout, start a new election
                     var timeSinceLastHeartbeat = DateTime.UtcNow - lastHeartbeat;
-                    if (state != State.Leader && 
-                        timeSinceLastHeartbeat.TotalMilliseconds > electionTimeoutMax && 
-                        DateTime.UtcNow - lastHeartbeat > TimeSpan.FromMilliseconds(electionTimeoutMax))
+                    if (timeSinceLastHeartbeat.TotalMilliseconds > timeout)
                     {
+                        Console.WriteLine($"{nodeId} detected heartbeat timeout. Starting election.");
                         StartElection();
                     }
                 }
@@ -255,31 +262,24 @@ class RaftNode
 
         var message = $"RequestVote|{currentTerm}|{nodeId}";
         var messageBytes = Encoding.UTF8.GetBytes(message);
-        
-        try 
+
+        try
         {
-            udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port)
-                .ContinueWith(t => 
-                {
-                    if (t.IsFaulted)
-                    {
-                        Console.WriteLine($"Failed to send RequestVote to {peer}: {t.Exception}");
-                    }
-                });
-            
-            Console.WriteLine($"{nodeId} sending RequestVote to {hostname}:{port}");
+            udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port);
+            Console.WriteLine($"{nodeId} requested vote from {hostname}:{port}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error sending RequestVote to {peer}: {ex.Message}");
+            Console.WriteLine($"Error sending request vote to {peer}: {ex.Message}");
         }
     }
 
     public void Stop()
     {
-        heartbeatTimer?.Dispose();
         cts.Cancel();
-        udpClient.Close();
+        udpClient.Dispose();
+        heartbeatTimer?.Dispose();
+        GlobalState.DecrementPeerCount();
         Console.WriteLine($"{nodeId} stopped.");
     }
 }

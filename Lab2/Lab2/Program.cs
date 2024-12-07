@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Runtime.InteropServices;
 
+GlobalState.PeerCount = 3;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -44,7 +46,7 @@ string[] peers = peersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 var app = builder.Build();
 
-Task.Run(() =>
+Task.Run(async () =>
 {
     // Create and start the Raft node
     var node = new RaftNode(nodeId, nodePort, peers);
@@ -55,12 +57,10 @@ Task.Run(() =>
     // Handle both SIGTERM (Docker) and CTRL+C
     AppDomain.CurrentDomain.ProcessExit += (s, e) =>
     {
-        Console.WriteLine($"[{nodeId}] Received shutdown signal. Starting graceful shutdown...");
         node.Stop();
-        Console.WriteLine($"[{nodeId}] Node stopped gracefully.");
     };
 
-
+    await Task.Delay(5000);
     node.StartAsync();
 });
 
