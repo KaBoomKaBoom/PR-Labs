@@ -43,7 +43,10 @@ string nodeId = Environment.GetEnvironmentVariable("NODE_ID") ?? "node1";
 int nodePort = int.Parse(Environment.GetEnvironmentVariable("NODE_PORT") ?? "8081");
 string peersEnv = Environment.GetEnvironmentVariable("PEERS") ?? string.Empty;
 string[] peers = peersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries);
-
+foreach (var peer in peers)
+{
+    Console.WriteLine($"Peer: {peer}");
+}
 var app = builder.Build();
 
 Task.Run(async () =>

@@ -14,14 +14,14 @@ class RaftNode
 
     private readonly string nodeId;
     private readonly int port;
-    private readonly string[] peers;
+    private string[] peers;
     private State state;
     private int currentTerm;
     private string votedFor;
     private UdpClient udpClient;
     private CancellationTokenSource cts;
     private Random random = new Random();
-    private readonly int electionTimeoutMin = 3000;
+    private readonly int electionTimeoutMin = 2000;
     private readonly int electionTimeoutMax = 4000;
     private DateTime lastHeartbeat;
     private readonly object lockObject = new object();
@@ -75,6 +75,12 @@ class RaftNode
     {
         var parts = message.Split('|');
         var type = parts[0];
+
+        if (type == "NodeStopped")
+        {
+            HandleNodeStopped(parts[1]);
+            return;
+        }
         var term = int.Parse(parts[1]);
 
         if (term > currentTerm)
@@ -104,8 +110,32 @@ class RaftNode
             case "Heartbeat":
                 HandleHeartbeat(parts);
                 break;
+            case "NodeStopped":
+                HandleNodeStopped(parts[1]);
+                break;
+
         }
     }
+    private void HandleNodeStopped(string stoppedNodeId)
+    {
+        lock (lockObject)
+        {
+            Console.WriteLine($"{nodeId} processing NodeStopped for {stoppedNodeId}");
+            var updatedPeers = peers.Where(peer => !peer.StartsWith("lab2-"+stoppedNodeId)).ToArray();
+
+            if (updatedPeers.Length != peers.Length)
+            {
+                Console.WriteLine($"{nodeId} removed {stoppedNodeId} from peer list.");
+            }
+            else
+            {
+                Console.WriteLine($"{nodeId} did not find {stoppedNodeId} in peer list.");
+            }
+
+            peers = updatedPeers;
+        }
+    }
+
 
     private bool HaveReceivedMajorityVotes()
     {
@@ -273,9 +303,32 @@ class RaftNode
             Console.WriteLine($"Error sending request vote to {peer}: {ex.Message}");
         }
     }
+    private void NotifyPeersOfShutdown()
+    {
+        foreach (var peer in peers)
+        {
+            var parts = peer.Split(':');
+            var hostname = parts[0];
+            var port = int.Parse(parts[1]);
+
+            var message = $"NodeStopped|{nodeId}";
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+
+            try
+            {
+                udpClient.SendAsync(messageBytes, messageBytes.Length, hostname, port);
+                Console.WriteLine($"{nodeId} notifying shutdown to {hostname}:{port}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error notifying shutdown to {peer}: {ex.Message}");
+            }
+        }
+    }
 
     public void Stop()
     {
+        NotifyPeersOfShutdown();
         cts.Cancel();
         udpClient.Dispose();
         heartbeatTimer?.Dispose();
