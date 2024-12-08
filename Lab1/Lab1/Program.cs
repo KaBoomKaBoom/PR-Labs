@@ -30,7 +30,7 @@ for (int i = 2; i < 6; i++)
     {
         // var htmlContentProduct = await requestSiteService.GetSiteContent(product.Link);
         // storeInfoService.StoreAdditionalInfo(htmlContentProduct, product);
-        Task.Delay(1000).Wait();
+        Task.Delay(500).Wait();
         sendToRMQ.Send(streamSystem, JsonSerializer.Serialize(product));
         Console.WriteLine($"Sent message: product {count}");
         count++;

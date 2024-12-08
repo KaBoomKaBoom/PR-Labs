@@ -31,8 +31,15 @@ public class ConsumeFromRMQ
                 var receivedData = Encoding.UTF8.GetString(message.Data.Contents);
                 Console.WriteLine($"Stream: {stream} - " +
                                   $"Received message: {receivedData}");
-                await _server.SendPostRequest(receivedData);
-                await Task.CompletedTask;
+                try
+                {
+                    await _server.SendPostRequest(receivedData);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending post request: {ex.Message}");
+                }
+                // await Task.CompletedTask;
             }
         };
         var consumer = await Consumer.Create(consumerConfig);

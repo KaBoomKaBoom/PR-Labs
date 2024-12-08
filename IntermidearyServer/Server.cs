@@ -12,7 +12,7 @@ public class Server
     public async Task SendPostRequest(string json)
     {
         var content = new StringContent("[" + json + "]", Encoding.UTF8, "application/json");
-        var response = await _client.PostAsync("http://localhost:5001/products", content);
+        var response = await _client.PostAsync($"http://host.docker.internal:{GlobalState.Host}/products", content);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -42,7 +42,7 @@ public class Server
             multipartContent.Add(fileStreamContent, "file", Path.GetFileName(filePath));
 
             // Send the POST request
-            var response = await _client.PostAsync("http://localhost:5001/upload", multipartContent);
+            var response = await _client.PostAsync($"http://host.docker.internal:{GlobalState.Host}/upload", multipartContent);
 
             // Check the response status
             if (response.IsSuccessStatusCode)

@@ -46,6 +46,7 @@ else
     app.UseHttpsRedirection();
 }
 
+
 app.MapControllers();
 var maxRetries = 5;
 var streamConsumer = new ConsumeFromRMQ();
@@ -94,9 +95,9 @@ Thread downloadThread = new Thread(() =>
             var ftpDownloader = new FtpDownloader();
             var server = new Server();
             var count = 2;
-            Task.Delay(3000).Wait(); 
             while (true)
             {
+                Thread.Sleep(30000); // Wait for 30 seconds
                 try
                 {
                     Console.WriteLine("Downloading file...");
@@ -104,6 +105,7 @@ Thread downloadThread = new Thread(() =>
 
                     if (!string.IsNullOrEmpty(filePath))
                     {
+                        count++;
                         Console.WriteLine("Uploading file...");
                         server.SendMultipartPostRequest(filePath).Wait();
                     }
@@ -112,14 +114,31 @@ Thread downloadThread = new Thread(() =>
                 {
                     Console.WriteLine($"Error in download/upload thread: {ex.Message}");
                 }
-                count++;
-                Thread.Sleep(30000); // Wait for 30 seconds
+
             }
         });
 
 downloadThread.Start();
 downloadThread.IsBackground = true; // Ensure thread exits when main thread exits
 
+Thread sendEmailThread = new Thread(() =>
+{
+    var emailSender = new MailSender();
+    while (true)
+    {
+        try
+        {
+            Console.WriteLine("Sending email...");
+            emailSender.SendMail();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in email thread: {ex.Message}");
+        }
+        Thread.Sleep(60000); // Wait for 60 seconds
+    }
+});
 
+sendEmailThread.Start();
 
 app.Run();

@@ -49,6 +49,7 @@ foreach (var peer in peers)
 }
 var app = builder.Build();
 
+//RAFT election
 Task.Run(async () =>
 {
     // Create and start the Raft node
@@ -57,7 +58,7 @@ Task.Run(async () =>
 
     Console.WriteLine($"Starting node {nodeId} on port {nodePort}");
 
-    // Handle both SIGTERM (Docker) and CTRL+C
+    // Handle both SIGTERM (Docker) 
     AppDomain.CurrentDomain.ProcessExit += (s, e) =>
     {
         node.Stop();

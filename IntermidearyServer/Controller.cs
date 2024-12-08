@@ -9,6 +9,7 @@ public class Controller : ControllerBase
     public IActionResult Host(string host)
     {
         Console.WriteLine($"Host: {host}");
+        GlobalState.Host = host;
         return Ok();
     }
 }
