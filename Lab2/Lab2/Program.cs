@@ -2,6 +2,10 @@ using Lab2.Helpers;
 using Lab2.Models;
 using Lab2.Services;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Runtime.InteropServices;
+
+GlobalState.PeerCount = 3;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+builder.WebHost.UseUrls("http://*:8080", "http://*:5000");
 // Add the connection string from appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddCors((options) =>
@@ -32,9 +37,37 @@ builder.Services.AddCors((options) =>
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbCompletition>();
+
+// Read environment variables to configure the node
+string nodeId = Environment.GetEnvironmentVariable("NODE_ID") ?? "node1";
+int nodePort = int.Parse(Environment.GetEnvironmentVariable("NODE_PORT") ?? "8081");
+string peersEnv = Environment.GetEnvironmentVariable("PEERS") ?? string.Empty;
+string[] peers = peersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries);
+foreach (var peer in peers)
+{
+    Console.WriteLine($"Peer: {peer}");
+}
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+//RAFT election
+Task.Run(async () =>
+{
+    // Create and start the Raft node
+    var node = new RaftNode(nodeId, nodePort, peers);
+    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+
+    Console.WriteLine($"Starting node {nodeId} on port {nodePort}");
+
+    // Handle both SIGTERM (Docker) 
+    AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+    {
+        node.Stop();
+    };
+
+    await Task.Delay(5000);
+    node.StartAsync();
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -50,9 +83,10 @@ else
 
 app.MapControllers();
 
-// Chat room setup
-var webSocketRoom = new ChatRoom();
-var webSocketServerService = new WebSocketServerService();
-Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
+
+// Optionally, setup WebSocket chat room (if applicable)
+/// var webSocketRoom = new ChatRoom();
+// var webSocketServerService = new WebSocketServerService();
+// Task.Run(() => webSocketServerService.StartWebSocketServer(webSocketRoom));
 
 app.Run();

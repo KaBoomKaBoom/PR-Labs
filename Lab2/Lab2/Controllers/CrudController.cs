@@ -112,6 +112,7 @@ namespace Lab2.Controllers
             var fileContent = await reader.ReadToEndAsync();
 
             // Print the content to console (or any logging if needed)
+            Console.WriteLine("File received successfully:");
             Console.WriteLine(fileContent);
 
             // Return the file content as a response

@@ -3,14 +3,24 @@ using Lab1.Models;
 using Lab1.Services;
 using Lab1.Mappers;
 using System.Text.Json;
+using RabbitMQ.Stream.Client;
+using System.Net;
 
-
+var sendToRMQ = new SendToRMQ();
+var serializationService = new SerializationService();
+var ftpUploader = new FtpUploader();
+var priceMapper = new PriceMapper();
 var requestSiteService = new RequestSiteService();
-List<Product>? productsAll = new List<Product>();
-for (int i = 2; i < 5; i++)
+
+
+
+// List<Product>? productsAll = new List<Product>();
+
+var streamSystem = await StreamSystem.Create(new StreamSystemConfig());
+var count = 1;
+for (int i = 2; i < 6; i++)
 {
     var htmlContent = await requestSiteService.GetSiteContent($"https://enter.online/telefoane/smartphone-uri?page={i}");
-    //var htmlContent = await requestSiteService.GetSiteContentTCP("https://darwin.md/telefoane");
 
     var storeInfoService = new StoreInfoService();
     List<Product>? products = storeInfoService.StoreInfo(htmlContent);
@@ -18,29 +28,40 @@ for (int i = 2; i < 5; i++)
     // Store additional info
     foreach (var product in products)
     {
-        var htmlContentProduct = await requestSiteService.GetSiteContent(product.Link);
-        storeInfoService.StoreAdditionalInfo(htmlContentProduct, product);
+        // var htmlContentProduct = await requestSiteService.GetSiteContent(product.Link);
+        // storeInfoService.StoreAdditionalInfo(htmlContentProduct, product);
+        Task.Delay(500).Wait();
+        sendToRMQ.Send(streamSystem, JsonSerializer.Serialize(product));
+        Console.WriteLine($"Sent message: product {count}");
+        count++;
     }
-    productsAll.AddRange(products);
+
+    //Upload files dinamically fo ftp server
+    var productsMap = priceMapper.LeiToEuro(products);
+    var jsonEuroMap = serializationService.SerializeListToJson(productsMap);
+    File.WriteAllText($"productsInEuro-{i}.json", jsonEuroMap);
+    ftpUploader.UploadFile("ftp://localhost:2121", "user", "pass", $"productsInEuro-{i}.json");
+
+    // productsAll.AddRange(products);
 }
-var serializationService = new SerializationService();
+
 
 //Inicial data extracted from site
 // var json = storeInfoService.StoreAsJson(products);
-var json = serializationService.SerializeListToJson(productsAll);
-var xml = serializationService.SerializeListToXML(productsAll);
-File.WriteAllText("productsInicial.json", json);
-File.WriteAllText("productsInicial.xml", xml);
+// var json = serializationService.SerializeListToJson(productsAll);
+// var xml = serializationService.SerializeListToXML(productsAll);
+// File.WriteAllText("productsInicial.json", json);
+//File.WriteAllText("productsInicial.xml", xml);
 
-var priceMapper = new PriceMapper();
 
-//Modified price to euro
-//Map price to euro using mapping function using Linq extension
-// var productsInEuro = priceMapper.LeiToEuro(products);
-// //var jsonEuro = storeInfoService.StoreAsJson(productsInEuro);
+
+// Modified price to euro
+// Map price to euro using mapping function using Linq extension
+// var productsInEuro = priceMapper.LeiToEuro(productsAll);
+//var jsonEuro = storeInfoService.StoreAsJson(productsInEuro);
 // var jsonEuro = serializationService.SerializeListToJson(productsInEuro);
-// var xmlEuro = serializationService.SerializeListToXML(productsInEuro);
 // File.WriteAllText("productsInEuro.json", jsonEuro);
+// var xmlEuro = serializationService.SerializeListToXML(productsInEuro);
 // File.WriteAllText("productsInEuro.xml", xmlEuro);
 
 

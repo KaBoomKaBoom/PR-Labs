@@ -1,0 +1,46 @@
+services:
+  intermideary-server:
+    container_name: intermideary-server-container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6000:6000/tcp"
+    depends_on:
+      - rabbitmq
+      - ftp_server
+    networks:
+      - lab2_default
+  rabbitmq:
+    image: rabbitmq:3.11-management-alpine  # Ensure a version supporting Streams
+    container_name: rabbitmq
+    ports:
+      - "5552:5552"   # RabbitMQ Streams
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest        # Default username
+      RABBITMQ_DEFAULT_PASS: guest      # Default password
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf # Custom config
+    command: >
+      sh -c "rabbitmq-plugins enable rabbitmq_stream &&
+             rabbitmq-plugins enable rabbitmq_management &&
+             rabbitmq-server"
+    networks:
+      - lab2_default
+
+  ftp_server:
+    image: stilliard/pure-ftpd:hardened
+    container_name: ftp_server
+    ports:
+      - "2121:21"
+      - "30000-30009:30000-30009"
+    environment:
+      FTP_USER_NAME: user
+      FTP_USER_PASS: pass
+      FTP_USER_HOME: /home/ftpusers/user
+    volumes:
+      - ./ftp:/home/ftpusers/user
+networks:
+  lab2_default:
+    driver: bridge
