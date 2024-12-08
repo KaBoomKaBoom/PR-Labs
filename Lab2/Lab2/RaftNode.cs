@@ -121,7 +121,7 @@ class RaftNode
         lock (lockObject)
         {
             Console.WriteLine($"{nodeId} processing NodeStopped for {stoppedNodeId}");
-            var updatedPeers = peers.Where(peer => !peer.StartsWith("lab2-"+stoppedNodeId)).ToArray();
+            var updatedPeers = peers.Where(peer => !peer.StartsWith("lab2-" + stoppedNodeId)).ToArray();
 
             if (updatedPeers.Length != peers.Length)
             {
@@ -202,10 +202,44 @@ class RaftNode
             // Stop election timeout as the node is now the leader
             lastHeartbeat = DateTime.UtcNow;
 
+            // Send TCP port to the leader server
+            SendLeaderPort();
+
             // Start sending periodic heartbeats
             heartbeatTimer = new Timer(_ => SendHeartbeats(), null, 0, HeartbeatInterval);
+
         }
     }
+
+    private void SendLeaderPort()
+    {
+        using (var client = new HttpClient())
+        {
+            try
+            {
+                // The URL of the server running on port 6000 in Docker
+                var tcpHost = Environment.GetEnvironmentVariable("TCP_PORT");
+                var url = $"http://host.docker.internal:6000/host/{tcpHost}";
+
+                // Send the POST request
+                var response = client.PostAsync(url, null ).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("Successfully sent TCP port to the leader server.");
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to send TCP port. Status code: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending TCP port to the leader server: {ex.Message}");
+            }
+        }
+    }
+
 
     private void SendHeartbeats()
     {

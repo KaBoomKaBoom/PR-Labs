@@ -11,12 +11,16 @@ public class ConsumeFromRMQ
     public async void Consume(StreamSystem streamSystem)
     {
         var streamName = "products";
-        
+
         // Ensure the stream exists
-        if (!await streamSystem.StreamExists(streamName))
+        try
         {
-            Console.WriteLine($"Stream {streamName} does not exist.");
-            return;
+            await streamSystem.CreateStream(new StreamSpec(streamName));
+            Console.WriteLine($"Stream '{streamName}' created successfully.");
+        }
+        catch (Exception e) when (e.Message.Contains("stream already exists"))
+        {
+            Console.WriteLine($"Stream '{streamName}' already exists.");
         }
 
         var consumerConfig = new ConsumerConfig(streamSystem, streamName)
@@ -32,12 +36,11 @@ public class ConsumeFromRMQ
             }
         };
         var consumer = await Consumer.Create(consumerConfig);
-        
+
         // Keep the consumer running
-        Console.WriteLine("Consumer started. Press any key to exit.");
-        Console.ReadKey();
+        Console.WriteLine("Consumer started.");
 
         // Close the consumer when done
-        await consumer.Close();
+
     }
 }

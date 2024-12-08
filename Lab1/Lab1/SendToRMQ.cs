@@ -19,7 +19,5 @@ public class SendToRMQ
 
         await producer.Send(message);
         // Console.WriteLine($"Sent message: {json}");
-
-        await producer.Close();
     }
 }

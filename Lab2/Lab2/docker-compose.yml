@@ -15,6 +15,7 @@ services:
       - NODE_ID=node1
       - PEERS=lab2-node2:8082,lab2-node3:8083,lab2-node4:8084
       - NODE_PORT=8081
+      - TCP_PORT=5001
     networks:
       - lab2_default
 
@@ -33,6 +34,7 @@ services:
       - NODE_ID=node2
       - PEERS=lab2-node1:8081,lab2-node3:8083,lab2-node4:8084
       - NODE_PORT=8082
+      - TCP_PORT=5002
     networks:
       - lab2_default
 
@@ -51,6 +53,7 @@ services:
       - NODE_ID=node3
       - PEERS=lab2-node1:8081,lab2-node2:8082,lab2-node4:8084
       - NODE_PORT=8083
+      - TCP_PORT=5003
     networks:
       - lab2_default
   lab2-node4:
@@ -68,6 +71,7 @@ services:
       - NODE_ID=node4
       - PEERS=lab2-node1:8081,lab2-node2:8082,lab2-node3:8083
       - NODE_PORT=8084
+      - TCP_PORT=5004
     networks:
       - lab2_default
   sql-server:
